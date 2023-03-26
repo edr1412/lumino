@@ -13,6 +13,7 @@
 #include <muduo/net/SocketsOps.h>
 
 #include <netdb.h>
+#include <cstddef>
 #include <netinet/in.h>
 
 // INADDR_ANY use (type)value casting.

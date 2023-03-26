@@ -5,6 +5,7 @@
 #include <muduo/base/Types.h>
 #include <muduo/net/Callbacks.h>
 #include <muduo/net/InetAddress.h>
+#include <muduo/base/noncopyable.h>
 
 #include <hiredis/hiredis.h>
 
