@@ -4,9 +4,31 @@ project(muduo C CXX)
 
 enable_testing()
 
+# 设置编译类型，默认为release
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
 endif()
+
+# 设置安装目录，默认为/usr/local
+if(NOT CMAKE_INSTALL_PREFIX)
+  set(CMAKE_INSTALL_PREFIX "/usr/local")
+endif()
+
+# 启用C++17标准
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# 导出编译命令
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# 检查环境变量CXX是否设置，如果没有设置，则使用默认值g++
+if(NOT DEFINED ENV{CXX})
+  set(ENV{CXX} "g++")
+endif()
+
+# 设置C++编译器
+set(CMAKE_CXX_COMPILER $ENV{CXX})
 
 option(MUDUO_BUILD_EXAMPLES "Build Muduo examples" ON)
 
