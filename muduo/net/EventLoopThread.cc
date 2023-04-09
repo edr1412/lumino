@@ -39,8 +39,9 @@ EventLoopThread::~EventLoopThread()
 EventLoop* EventLoopThread::startLoop()
 {
   assert(!thread_.started());
-  thread_.start();
+  thread_.start(); // 启动IO线程threadFunc来运行EventLoop
 
+  // 等待threadFunc在stack上定义EventLoop对象，然后将其地址赋值给 loop_ 成员变量后，被唤醒，从 loop_ 拿到EventLoop对象的地址并返回
   EventLoop* loop = NULL;
   {
     MutexLockGuard lock(mutex_);
@@ -56,6 +57,9 @@ EventLoop* EventLoopThread::startLoop()
 
 void EventLoopThread::threadFunc()
 {
+  // 这里EventLoop的生命期与线程主函数的作用域相同，
+  // 因此在threadFunc()退出之后这个指针就失效了。
+  // 好在服务程序一般不要求能安全地退出，这应该不是什么大问题。
   EventLoop loop;
 
   if (callback_)

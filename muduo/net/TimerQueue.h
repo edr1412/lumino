@@ -54,8 +54,10 @@ class TimerQueue : noncopyable
   // FIXME: use unique_ptr<Timer> instead of raw pointers.
   // This requires heterogeneous comparison lookup (N3465) from C++14
   // so that we can find an T* in a set<unique_ptr<T>>.
+  // 以pair<Timestamp, Timer*>为key，这样即便两个Timer的到期时间相同，它们的地址也必定不同。
   typedef std::pair<Timestamp, Timer*> Entry;
-  typedef std::set<Entry> TimerList;
+  // 使用二叉搜索树来快速寻找、添加、删除Timer；只有key没有value，所以使用set而不是map
+  typedef std::set<Entry> TimerList; 
   typedef std::pair<Timer*, int64_t> ActiveTimer;
   typedef std::set<ActiveTimer> ActiveTimerSet;
 
@@ -64,6 +66,7 @@ class TimerQueue : noncopyable
   // called when timerfd alarms
   void handleRead();
   // move out all expired timers
+  // 核心函数，返回所有到期的Timer
   std::vector<Entry> getExpired(Timestamp now);
   void reset(const std::vector<Entry>& expired, Timestamp now);
 
@@ -71,7 +74,7 @@ class TimerQueue : noncopyable
 
   EventLoop* loop_;
   const int timerfd_;
-  Channel timerfdChannel_;
+  Channel timerfdChannel_; // 使用1个channel来观察timerfd的readable事件
   // Timer list sorted by expiration
   TimerList timers_;
 

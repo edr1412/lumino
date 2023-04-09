@@ -24,7 +24,7 @@ using namespace muduo::net;
 
 Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr, bool reuseport)
   : loop_(loop),
-    acceptSocket_(sockets::createNonblockingOrDie(listenAddr.family())),
+    acceptSocket_(sockets::createNonblockingOrDie(listenAddr.family())), // 1. 调用socket(2)
     acceptChannel_(loop, acceptSocket_.fd()),
     listenning_(false),
     idleFd_(::open("/dev/null", O_RDONLY | O_CLOEXEC))
@@ -32,7 +32,7 @@ Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr, bool reusepor
   assert(idleFd_ >= 0);
   acceptSocket_.setReuseAddr(true);
   acceptSocket_.setReusePort(reuseport);
-  acceptSocket_.bindAddress(listenAddr);
+  acceptSocket_.bindAddress(listenAddr); // 2. 调用bind(2)
   acceptChannel_.setReadCallback(
       std::bind(&Acceptor::handleRead, this));
 }
@@ -48,22 +48,24 @@ void Acceptor::listen()
 {
   loop_->assertInLoopThread();
   listenning_ = true;
-  acceptSocket_.listen();
+  acceptSocket_.listen(); // 3. 调用listen(2)
   acceptChannel_.enableReading();
 }
 
 void Acceptor::handleRead()
 {
   loop_->assertInLoopThread();
-  InetAddress peerAddr;
-  //FIXME loop until no more
-  int connfd = acceptSocket_.accept(&peerAddr);
+  InetAddress peerAddr; // 存放对方的地址
+  // 每次仅accept(2)一个socket。muduo是为长连接服务优化的，因此这里用了最简单的办法。
+  int connfd = acceptSocket_.accept(&peerAddr); // 4. 调用accept(2)
   if (connfd >= 0)
   {
     // string hostport = peerAddr.toIpPort();
     // LOG_TRACE << "Accepts of " << hostport;
     if (newConnectionCallback_)
     {
+      // 这里直接把socket fd传给callback，这种传递int句柄的做法不够理想
+      // 在C++11中可以先创建Socket对象，再用移动语义把Socket对象std::move()给回调函数，确保资源的安全释放。
       newConnectionCallback_(connfd, peerAddr);
     }
     else

@@ -27,8 +27,11 @@ const struct sockaddr* sockaddr_cast(const struct sockaddr_in6* addr);
 
 ///
 /// Wrapper of sockaddr_in.
+/// 对struct sockaddr_in的简单封装，
+/// 能自动转换字节序。
 ///
 /// This is an POD interface class.
+/// InetAddress具备值语义，是可以拷贝的
 class InetAddress : public muduo::copyable
 {
  public:

@@ -76,7 +76,7 @@ void PollPoller::updateChannel(Channel* channel)
 {
   Poller::assertInLoopThread();
   LOG_TRACE << "fd = " << channel->fd() << " events = " << channel->events();
-  if (channel->index() < 0)
+  if (channel->index() < 0) // Channel 没有记住过自己在 pollfds_ 中的下标，即第一次添加
   {
     // a new one, add to pollfds_
     assert(channels_.find(channel->fd()) == channels_.end());
@@ -86,17 +86,17 @@ void PollPoller::updateChannel(Channel* channel)
     pfd.revents = 0;
     pollfds_.push_back(pfd);
     int idx = static_cast<int>(pollfds_.size())-1;
-    channel->set_index(idx);
-    channels_[pfd.fd] = channel;
+    channel->set_index(idx); // Channel 记住自己在 pollfds_ 中的下标
+    channels_[pfd.fd] = channel; // 添加新 Channel，复杂度为 O(logN)
   }
-  else
+  else // Channel 已经记住过自己在 pollfds_ 中的下标，即更新已有的 Channel
   {
     // update existing one
     assert(channels_.find(channel->fd()) != channels_.end());
     assert(channels_[channel->fd()] == channel);
     int idx = channel->index();
     assert(0 <= idx && idx < static_cast<int>(pollfds_.size()));
-    struct pollfd& pfd = pollfds_[idx];
+    struct pollfd& pfd = pollfds_[idx]; //更新已有的 Channel，复杂度为 O(1)
     assert(pfd.fd == channel->fd() || pfd.fd == -channel->fd()-1);
     pfd.fd = channel->fd();
     pfd.events = static_cast<short>(channel->events());
@@ -120,13 +120,13 @@ void PollPoller::removeChannel(Channel* channel)
   assert(0 <= idx && idx < static_cast<int>(pollfds_.size()));
   const struct pollfd& pfd = pollfds_[idx]; (void)pfd;
   assert(pfd.fd == -channel->fd()-1 && pfd.events == channel->events());
-  size_t n = channels_.erase(channel->fd());
+  size_t n = channels_.erase(channel->fd()); // 从 channels_ 中删除 Channel，复杂度为 O(logN)
   assert(n == 1); (void)n;
-  if (implicit_cast<size_t>(idx) == pollfds_.size()-1)
+  if (implicit_cast<size_t>(idx) == pollfds_.size()-1) // Channel 在 pollfds_ 中的下标是最后一个，直接删除即可，复杂度为 O(1)
   {
     pollfds_.pop_back();
   }
-  else
+  else // 交换最后一个 Channel 和要删除的 Channel，然后删除最后一个 Channel，复杂度为 O(1)
   {
     int channelAtEnd = pollfds_.back().fd;
     iter_swap(pollfds_.begin()+idx, pollfds_.end()-1);

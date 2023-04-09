@@ -31,6 +31,7 @@ class InetAddress;
 ///
 /// It closes the sockfd when desctructs.
 /// It's thread safe, all operations are delagated to OS.
+/// Socket是一个RAIIhandle，封装了socket文件描述符的生命期。
 class Socket : noncopyable
 {
  public:

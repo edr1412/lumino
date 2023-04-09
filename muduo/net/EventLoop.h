@@ -27,6 +27,7 @@ namespace muduo
 namespace net
 {
 
+// 前向声明，简化了头文件之间的依赖关系
 class Channel;
 class Poller;
 class TimerQueue;
@@ -49,6 +50,17 @@ class EventLoop : noncopyable
   /// Must be called in the same thread as creation of the object.
   ///
   void loop();
+
+  void assertInLoopThread()
+  {
+    if (!isInLoopThread())
+    {
+      abortNotInLoopThread();
+    }
+  }
+
+  // 当前线程是否是EventLoop所属的线程
+  bool isInLoopThread() const { return threadId_ == CurrentThread::tid(); }
 
   /// Quits loop.
   ///
@@ -105,14 +117,6 @@ class EventLoop : noncopyable
   bool hasChannel(Channel* channel);
 
   // pid_t threadId() const { return threadId_; }
-  void assertInLoopThread()
-  {
-    if (!isInLoopThread())
-    {
-      abortNotInLoopThread();
-    }
-  }
-  bool isInLoopThread() const { return threadId_ == CurrentThread::tid(); }
   // bool callingPendingFunctors() const { return callingPendingFunctors_; }
   bool eventHandling() const { return eventHandling_; }
 
@@ -141,9 +145,13 @@ class EventLoop : noncopyable
   bool eventHandling_; /* atomic */
   bool callingPendingFunctors_; /* atomic */
   int64_t iteration_;
-  const pid_t threadId_;
+  const pid_t threadId_; // 本对象所属的线程ID。在构造函数中被赋值。
   Timestamp pollReturnTime_;
-  std::unique_ptr<Poller> poller_;
+  // 通过unique_ptr间接持有Poller，因此EventLoop不需要知道Poller的具体实现。
+  // 即不需要包含Poller.h，只需要前向声明即可。
+  // 为此，EventLoop的析构函数必须在EventLoop.cc中显式定义。
+  // TimerQueue 同理。
+  std::unique_ptr<Poller> poller_; 
   std::unique_ptr<TimerQueue> timerQueue_;
   int wakeupFd_;
   // unlike in TimerQueue, which is an internal class,

@@ -27,7 +27,9 @@ class Channel;
 ///
 /// Base class for IO Multiplexing
 ///
-/// This class doesn't own the Channel objects.
+/// Poller并不拥有Channel，
+/// Channel在析构之前必须自己unregister（EventLoop::removeChannel()），避免空悬指针。
+/// Poller是EventLoop的间接成员，生命期与EventLoop相等。
 class Poller : noncopyable
 {
  public:
@@ -38,6 +40,9 @@ class Poller : noncopyable
 
   /// Polls the I/O events.
   /// Must be called in the loop thread.
+  /// Poller的核心函数，负责调用poll(2）或者epoll_wait(2)，
+  /// 填充调用方传入的activeChannels，
+  /// 返回poll(2)或者epoll_wait(2) return的时刻。
   virtual Timestamp poll(int timeoutMs, ChannelList* activeChannels) = 0;
 
   /// Changes the interested I/O events.
@@ -58,6 +63,7 @@ class Poller : noncopyable
   }
 
  protected:
+  /// 从fd到Channel*的映射
   typedef std::map<int, Channel*> ChannelMap;
   ChannelMap channels_;
 

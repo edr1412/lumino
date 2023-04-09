@@ -15,7 +15,7 @@
 
 #include <vector>
 
-struct pollfd;
+struct pollfd; // 前向声明，避免包含poll.h
 
 namespace muduo
 {
@@ -41,7 +41,7 @@ class PollPoller : public Poller
                           ChannelList* activeChannels) const;
 
   typedef std::vector<struct pollfd> PollFdList;
-  PollFdList pollfds_;
+  PollFdList pollfds_; // pollfd数组，作为poll(2)调用的参数；在updateChannel()中维护和更新
 };
 
 }  // namespace net

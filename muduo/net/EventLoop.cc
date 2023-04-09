@@ -26,6 +26,8 @@ using namespace muduo::net;
 
 namespace
 {
+
+// 本线程的EventLoop对象。每个线程至多有一个EventLoop对象。
 __thread EventLoop* t_loopInThisThread = 0;
 
 const int kPollTimeMs = 10000;
@@ -164,6 +166,9 @@ void EventLoop::queueInLoop(Functor cb)
   pendingFunctors_.push_back(std::move(cb));
   }
 
+  // 如果调用queueInLoop()的线程不是EventLoop所属的线程，那么唤醒是必需的；
+  // 如果在IO线程调用queueInLoop()，而此时正在调用pending functor，那么也必须唤醒，否则新加的cb就不能被及时调用了
+  // 换句话说，只有在IO线程的事件回调中调用queueInLoop()才无须wakeup()。
   if (!isInLoopThread() || callingPendingFunctors_)
   {
     wakeup();
@@ -256,6 +261,9 @@ void EventLoop::doPendingFunctors()
   std::vector<Functor> functors;
   callingPendingFunctors_ = true;
 
+  // 不是简单地在临界区内依次调用Functor，而是把回调列表swap()到局部变量functors中，
+  // 这样一方面减小了临界区的长度（意味着不会阻塞其他线程调用queueInLoop()）
+  // 另一方面也避免了死锁（因为Functor可能再调用queueInLoop()）。
   {
   MutexLockGuard lock(mutex_);
   functors.swap(pendingFunctors_);

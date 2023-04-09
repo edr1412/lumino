@@ -27,6 +27,7 @@ class InetAddress;
 ///
 /// Acceptor of incoming TCP connections.
 ///
+/// 内部class，供TcpServer使用，生命期由TcpServer控制
 class Acceptor : noncopyable
 {
  public:

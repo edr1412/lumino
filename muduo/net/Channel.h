@@ -22,14 +22,17 @@ namespace muduo
 namespace net
 {
 
-class EventLoop;
+class EventLoop; // 前向声明，简化了头文件之间的依赖关系，避免包含EventLoop.h
 
 ///
 /// A selectable I/O channel.
 ///
-/// This class doesn't own the file descriptor.
+/// 每个Channel对象自始至终只负责一个文件描述符（fd）的IO事件分发，
+/// 但它并不拥有这个fd，也不会在析构的时候关闭这个fd。
 /// The file descriptor could be a socket,
 /// an eventfd, a timerfd, or a signalfd
+/// Channel会把不同的IO事件分发为不同的回调，例如ReadCallback、WriteCallback等
+/// Channel的生命期由其owner class负责管理，它一般是其他class的直接或间接成员。
 class Channel : noncopyable
 {
  public:
@@ -39,7 +42,7 @@ class Channel : noncopyable
   Channel(EventLoop* loop, int fd);
   ~Channel();
 
-  void handleEvent(Timestamp receiveTime);
+  void handleEvent(Timestamp receiveTime); // Channel的核心，由EventLoop::loop调用，作用是根据revents_的值调用不同的用户回调
   void setReadCallback(ReadEventCallback cb)
   { readCallback_ = std::move(cb); }
   void setWriteCallback(EventCallback cb)
@@ -83,18 +86,19 @@ class Channel : noncopyable
  private:
   static string eventsToString(int fd, int ev);
 
-  void update();
+  void update(); // 会调用EventLoop::updateChannel，后者会调用Poller::updateChannel。必须定义在Channel.cc中，因为Channel.cc包含了EventLoop.h
   void handleEventWithGuard(Timestamp receiveTime);
 
+  // Channel.h 没有包含任何POSIX头文件，因此这些常量的定义放在了Channel.cc中
   static const int kNoneEvent;
   static const int kReadEvent;
   static const int kWriteEvent;
 
   EventLoop* loop_;
   const int  fd_;
-  int        events_;
-  int        revents_; // it's the received event types of epoll or poll
-  int        index_; // used by Poller.
+  int        events_; // 关心的IO事件，由用户设置。bit pattern
+  int        revents_; // 目前活动的IO事件，由Poller设置。bit pattern
+  int        index_; // used by Poller. 在PollPoller中表示 pollfds_ 数组中的下标
   bool       logHup_;
 
   std::weak_ptr<void> tie_;

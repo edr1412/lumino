@@ -133,7 +133,7 @@ void TimerQueue::addTimerInLoop(Timer* timer)
 {
   loop_->assertInLoopThread();
   bool earliestChanged = insert(timer);
-
+  // earliestChanged 表示是否改动了最早的Timer，即是否需要重置timerfd的超时时间
   if (earliestChanged)
   {
     resetTimerfd(timerfd_, timer->expiration());
@@ -183,9 +183,9 @@ void TimerQueue::handleRead()
 std::vector<TimerQueue::Entry> TimerQueue::getExpired(Timestamp now)
 {
   assert(timers_.size() == activeTimers_.size());
-  std::vector<Entry> expired;
+  std::vector<Entry> expired; // 存放到期的Timer
   Entry sentry(now, reinterpret_cast<Timer*>(UINTPTR_MAX));
-  TimerList::iterator end = timers_.lower_bound(sentry);
+  TimerList::iterator end = timers_.lower_bound(sentry); // 第一个未到期的Timer的迭代器
   assert(end == timers_.end() || now < end->first);
   std::copy(timers_.begin(), end, back_inserter(expired));
   timers_.erase(timers_.begin(), end);
@@ -239,6 +239,8 @@ bool TimerQueue::insert(Timer* timer)
   bool earliestChanged = false;
   Timestamp when = timer->expiration();
   TimerList::iterator it = timers_.begin();
+  // 如果timers_为空，或者timer的超时时间小于timers_中的最早的Timer的超时时间
+  // 则使earliestChanged为true，之后需要重置timerfd的超时时间
   if (it == timers_.end() || when < it->first)
   {
     earliestChanged = true;

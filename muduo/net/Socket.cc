@@ -71,6 +71,9 @@ int Socket::accept(InetAddress* peeraddr)
 {
   struct sockaddr_in6 addr;
   memZero(&addr, sizeof addr);
+  // accept(2):
+  // int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+  // 其中 sockfd 是 socket() 返回的文件描述符，addr 是一个指向 sockaddr 结构的指针，用于返回对方的地址信息，addrlen 是一个指向整数的指针，用于返回 addr 的长度。 返回值是一个新的文件描述符，用于与对方通信。
   int connfd = sockets::accept(sockfd_, &addr);
   if (connfd >= 0)
   {
