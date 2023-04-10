@@ -16,10 +16,10 @@ Optional dependencies:
 To build, run:
 
 ```
-# ln -sf build/release-cpp17/compile_commands.json
-mkdir -p build/release-cpp17
-cd build/release-cpp17
-cmake ../..
+# ln -sf build/compile_commands.json
+mkdir -p build
+cd build
+cmake ..
 make
 sudo make install # optional, will install to /usr/local
 ```
@@ -27,7 +27,7 @@ sudo make install # optional, will install to /usr/local
 To run all the unit tests, run:
 
 ```
-cd build/release-cpp17
+cd build
 CTEST_OUTPUT_ON_FAILURE=TRUE make test
 ```
 

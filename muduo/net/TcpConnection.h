@@ -37,6 +37,7 @@ class Socket;
 /// TCP connection, for both client and server usage.
 ///
 /// This is an interface class, so don't expose too much details.
+/// TcpConnection是muduo里唯一默认使用shared_ptr来管理的class，也是唯一继承enable_shared_from_this的class，这源于其模糊的生命期
 class TcpConnection : noncopyable,
                       public std::enable_shared_from_this<TcpConnection>
 {
@@ -139,10 +140,14 @@ class TcpConnection : noncopyable,
   std::unique_ptr<Channel> channel_;
   const InetAddress localAddr_;
   const InetAddress peerAddr_;
+
+  // 用户自定义的回调函数，用户传给TcpServer，TcpServer再传给TcpConnection
   ConnectionCallback connectionCallback_;
   MessageCallback messageCallback_;
   WriteCompleteCallback writeCompleteCallback_;
+  // 用户自定义的回调函数，用户直接传给TcpConnection
   HighWaterMarkCallback highWaterMarkCallback_;
+
   CloseCallback closeCallback_;
   size_t highWaterMark_;
   Buffer inputBuffer_;

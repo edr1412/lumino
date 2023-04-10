@@ -148,12 +148,14 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
     return;
   }
   // if no thing in output queue, try writing directly
+  // 如果当前outputBuffer_已经有待发送的数据，那么就不能先尝试发送了，因为这会造成数据乱序。
   if (!channel_->isWriting() && outputBuffer_.readableBytes() == 0)
   {
     nwrote = sockets::write(channel_->fd(), data, len);
     if (nwrote >= 0)
     {
       remaining = len - nwrote;
+      // 如果一次发送完毕就不会启用WriteCallback。直接启用WriteCompleteCallback。
       if (remaining == 0 && writeCompleteCallback_)
       {
         loop_->queueInLoop(std::bind(writeCompleteCallback_, shared_from_this()));
@@ -174,6 +176,7 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
   }
 
   assert(remaining <= len);
+  // 如果只发送了部分数据，则把剩余的数据放入outputBuffer_，并开始关注writable事件，以后在handlerWrite()中发送剩余的数据
   if (!faultError && remaining > 0)
   {
     size_t oldLen = outputBuffer_.readableBytes();
@@ -334,6 +337,7 @@ void TcpConnection::connectEstablished()
 void TcpConnection::connectDestroyed()
 {
   loop_->assertInLoopThread();
+  // 某些情况下可以不经由handleClose()而直接调用connectDestroyed()
   if (state_ == kConnected)
   {
     setState(kDisconnected);
@@ -383,6 +387,7 @@ void TcpConnection::handleWrite()
         {
           loop_->queueInLoop(std::bind(writeCompleteCallback_, shared_from_this()));
         }
+        // 如果这时连接正在关闭，则调用shutdownInLoop()，继续执行关闭过程。
         if (state_ == kDisconnecting)
         {
           shutdownInLoop();

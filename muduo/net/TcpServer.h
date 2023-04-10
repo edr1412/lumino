@@ -98,6 +98,10 @@ class TcpServer : noncopyable
   /// Not thread safe, but in loop
   void removeConnectionInLoop(const TcpConnectionPtr& conn);
 
+  // TcpServer持有目前存活的TcpConnection的shared_ptr（定义为TcpConnectionPtr），
+  // 因为TcpConnection对象的生命期是模糊的，用户也可以持有TcpConnectionPtr。
+  // 每个TcpConnection对象有一个名字，
+  // 这个名字是由其所属的TcpServer在创建TcpConnection对象时生成，名字是ConnectionMap的key。
   typedef std::map<string, TcpConnectionPtr> ConnectionMap;
 
   EventLoop* loop_;  // the acceptor loop

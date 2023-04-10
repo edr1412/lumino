@@ -83,17 +83,17 @@ void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
   InetAddress localAddr(sockets::getLocalAddr(sockfd));
   // FIXME poll with zero timeout to double confirm the new connection
   // FIXME use make_shared if necessary
-  TcpConnectionPtr conn(new TcpConnection(ioLoop,
-                                          connName,
-                                          sockfd,
-                                          localAddr,
-                                          peerAddr));
+  TcpConnectionPtr conn = std::make_shared<TcpConnection>(ioLoop,
+                                                          connName,
+                                                          sockfd,
+                                                          localAddr,
+                                                          peerAddr);
   connections_[connName] = conn;
   conn->setConnectionCallback(connectionCallback_);
   conn->setMessageCallback(messageCallback_);
   conn->setWriteCompleteCallback(writeCompleteCallback_);
   conn->setCloseCallback(
-      std::bind(&TcpServer::removeConnection, this, _1)); // FIXME: unsafe
+      std::bind(&TcpServer::removeConnection, this, _1)); // FIXME: unsafe but 通常TcpServer的生命期长于它建立的TcpConnection，因此不用担心TcpServer对象失效
   ioLoop->runInLoop(std::bind(&TcpConnection::connectEstablished, conn));
 }
 
@@ -109,9 +109,11 @@ void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn)
   LOG_INFO << "TcpServer::removeConnectionInLoop [" << name_
            << "] - connection " << conn->name();
   size_t n = connections_.erase(conn->name());
+  // 这时TcpConnection已经是命悬一线：如果用户不持有TcpConnectionPtr的话，conn的引用计数已降到1。
   (void)n;
   assert(n == 1);
   EventLoop* ioLoop = conn->getLoop();
+  // 用 std::bind让TcpConnection的生命期长到调用connectDestroyed()的时刻。
   ioLoop->queueInLoop(
       std::bind(&TcpConnection::connectDestroyed, conn));
 }
