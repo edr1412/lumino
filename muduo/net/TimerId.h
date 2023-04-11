@@ -23,6 +23,9 @@ class Timer;
 ///
 /// An opaque identifier, for canceling Timer.
 ///
+/// TimerId同时保存Timer*和sequence_，sequence_用于区分地址相同的先后两个Timer对象。
+/// TimerQueue::cancel()根据TimerId找到需要注销的Timer对象。
+/// TimerId不负责Timer的生命期。
 class TimerId : public muduo::copyable
 {
  public:

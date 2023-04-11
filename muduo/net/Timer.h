@@ -52,9 +52,9 @@ class Timer : noncopyable
   Timestamp expiration_;
   const double interval_;
   const bool repeat_;
-  const int64_t sequence_;
+  const int64_t sequence_; // 全局递增的序列号int64_t sequence_ ，用于区分地址相同的先后两个Timer对象。
 
-  static AtomicInt64 s_numCreated_;
+  static AtomicInt64 s_numCreated_; // 原子计数器，用于生成 sequence_
 };
 
 }  // namespace net

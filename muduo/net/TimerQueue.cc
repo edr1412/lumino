@@ -144,6 +144,8 @@ void TimerQueue::cancelInLoop(TimerId timerId)
 {
   loop_->assertInLoopThread();
   assert(timers_.size() == activeTimers_.size());
+  // 由于TimerId不负责Timer的生命期，其中保存的Timer*可能失效，
+  // 因此不能直接dereference，只有在activeTimers_中找到了Timer时才能提领。
   ActiveTimer timer(timerId.timer_, timerId.sequence_);
   ActiveTimerSet::iterator it = activeTimers_.find(timer);
   if (it != activeTimers_.end())

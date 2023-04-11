@@ -144,7 +144,7 @@ class TcpConnection : noncopyable,
   // 用户自定义的回调函数，用户传给TcpServer，TcpServer再传给TcpConnection
   ConnectionCallback connectionCallback_;
   MessageCallback messageCallback_;
-  WriteCompleteCallback writeCompleteCallback_;
+  WriteCompleteCallback writeCompleteCallback_; // 又名：低水位回调
   // 用户自定义的回调函数，用户直接传给TcpConnection
   HighWaterMarkCallback highWaterMarkCallback_;
 

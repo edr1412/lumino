@@ -27,6 +27,7 @@ namespace net
 class EventLoop;
 class EventLoopThread;
 
+// 每个TcpServer有自己的EventLoopThreadPool，多个TcpServer之间不共享EventLoopThreadPool
 class EventLoopThreadPool : noncopyable
 {
  public:
@@ -54,7 +55,7 @@ class EventLoopThreadPool : noncopyable
 
  private:
 
-  EventLoop* baseLoop_;
+  EventLoop* baseLoop_; // 即TcpServer自己用的那个loop
   string name_;
   bool started_;
   int numThreads_;

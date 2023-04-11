@@ -98,7 +98,7 @@ class Channel : noncopyable
   const int  fd_;
   int        events_; // 关心的IO事件，由用户设置。bit pattern
   int        revents_; // 目前活动的IO事件，由Poller设置。bit pattern
-  int        index_; // used by Poller. 在PollPoller中表示 pollfds_ 数组中的下标
+  int        index_; // used by Poller. 在PollPoller中表示 pollfds_ 数组中的下标，在EPollPoller中被挪用为标记此Channel是否位于epoll的关注列表之中
   bool       logHup_;
 
   std::weak_ptr<void> tie_;
