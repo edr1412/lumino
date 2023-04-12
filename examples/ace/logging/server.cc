@@ -1,6 +1,6 @@
 #include <examples/ace/logging/logrecord.pb.h>
 
-#include <muduo/base/Atomic.h>
+#include <atomic>
 #include <muduo/base/FileUtil.h>
 #include <muduo/base/Logging.h>
 #include <muduo/net/EventLoop.h>
@@ -45,7 +45,7 @@ class Session : noncopyable
     filename += timebuf;
 
     char buf[32];
-    snprintf(buf, sizeof buf, "%d", globalCount_.incrementAndGet());
+    snprintf(buf, sizeof buf, "%d", globalCount_.fetch_add(1) + 1);
     filename += buf;
 
     filename += ".log";
@@ -71,11 +71,11 @@ class Session : noncopyable
 
   Codec codec_;
   FileUtil::AppendFile file_;
-  static AtomicInt32 globalCount_;
+  static std::atomic_int32_t globalCount_;
 };
 typedef std::shared_ptr<Session> SessionPtr;
 
-AtomicInt32 Session::globalCount_;
+std::atomic_int32_t Session::globalCount_;
 
 class LogServer : noncopyable
 {

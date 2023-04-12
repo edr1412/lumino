@@ -55,7 +55,7 @@ void RpcChannel::CallMethod(const ::google::protobuf::MethodDescriptor* method,
 {
   RpcMessage message;
   message.set_type(REQUEST);
-  int64_t id = id_.incrementAndGet();
+  int64_t id = id_.fetch_add(1) + 1;
   message.set_id(id);
   message.set_service(method->service()->full_name());
   message.set_method(method->name());

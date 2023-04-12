@@ -50,6 +50,17 @@
         "streambuf": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "stop_token": "cpp",
+        "chrono": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "condition_variable": "cpp",
+        "cstring": "cpp",
+        "ctime": "cpp",
+        "ratio": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "thread": "cpp"
     }
 }

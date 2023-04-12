@@ -1,13 +1,13 @@
 #include "MemcacheServer.h"
 
-#include <muduo/base/Atomic.h>
+#include <atomic>
 #include <muduo/base/Logging.h>
 #include <muduo/net/EventLoop.h>
 
 using namespace muduo;
 using namespace muduo::net;
 
-muduo::AtomicInt64 g_cas;
+std::atomic_int64_t g_cas;
 
 MemcacheServer::Options::Options()
 {
@@ -51,7 +51,7 @@ bool MemcacheServer::storeItem(const ItemPtr& item, const Item::UpdatePolicy pol
   *exists = it != items.end();
   if (policy == Item::kSet)
   {
-    item->setCas(g_cas.incrementAndGet());
+    item->setCas(g_cas.fetch_add(1) + 1);
     if (*exists)
     {
       items.erase(it);
@@ -68,7 +68,7 @@ bool MemcacheServer::storeItem(const ItemPtr& item, const Item::UpdatePolicy pol
       }
       else
       {
-        item->setCas(g_cas.incrementAndGet());
+        item->setCas(g_cas.fetch_add(1) + 1);
         items.insert(item);
       }
     }
@@ -76,7 +76,7 @@ bool MemcacheServer::storeItem(const ItemPtr& item, const Item::UpdatePolicy pol
     {
       if (*exists)
       {
-        item->setCas(g_cas.incrementAndGet());
+        item->setCas(g_cas.fetch_add(1) + 1);
         items.erase(it);
         items.insert(item);
       }
@@ -95,7 +95,7 @@ bool MemcacheServer::storeItem(const ItemPtr& item, const Item::UpdatePolicy pol
                                        oldItem->flags(),
                                        oldItem->rel_exptime(),
                                        newLen,
-                                       g_cas.incrementAndGet()));
+                                       g_cas.fetch_add(1) + 1));
         if (policy == Item::kAppend)
         {
           newItem->append(oldItem->value(), oldItem->valueLength() - 2);
@@ -120,7 +120,7 @@ bool MemcacheServer::storeItem(const ItemPtr& item, const Item::UpdatePolicy pol
     {
       if (*exists && (*it)->cas() == item->cas())
       {
-        item->setCas(g_cas.incrementAndGet());
+        item->setCas(g_cas.fetch_add(1) + 1);
         items.erase(it);
         items.insert(item);
       }

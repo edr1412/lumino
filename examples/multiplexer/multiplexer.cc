@@ -1,4 +1,4 @@
-#include <muduo/base/Atomic.h>
+#include <atomic>
 #include <muduo/base/Logging.h>
 #include <muduo/base/Mutex.h>
 #include <muduo/base/Thread.h>
@@ -197,8 +197,8 @@ class MultiplexServer
   void onClientMessage(const TcpConnectionPtr& conn, Buffer* buf, Timestamp)
   {
     size_t len = buf->readableBytes();
-    transferred_.addAndGet(len);
-    receivedMessages_.incrementAndGet();
+    transferred_.fetch_add(len);
+    receivedMessages_.fetch_add(1);
     if (conn->getContext().has_value())
     {
       int id = std::any_cast<int>(conn->getContext());
@@ -257,17 +257,17 @@ class MultiplexServer
   void onBackendMessage(const TcpConnectionPtr& conn, Buffer* buf, Timestamp)
   {
     size_t len = buf->readableBytes();
-    transferred_.addAndGet(len);
-    receivedMessages_.incrementAndGet();
+    transferred_.fetch_add(len);
+    receivedMessages_.fetch_add(1);
     sendToClient(buf);
   }
 
   void printStatistics()
   {
     Timestamp endTime = Timestamp::now();
-    int64_t newCounter = transferred_.get();
+    int64_t newCounter = transferred_.load();
     int64_t bytes = newCounter - oldCounter_;
-    int64_t msgs = receivedMessages_.getAndSet(0);
+    int64_t msgs = receivedMessages_.exchange(0);
     double time = timeDifference(endTime, startTime_);
     printf("%4.3f MiB/s %4.3f Ki Msgs/s %6.2f bytes per msg\n",
         static_cast<double>(bytes)/time/1024/1024,
@@ -281,8 +281,8 @@ class MultiplexServer
   TcpServer server_;
   TcpClient backend_;
   int numThreads_;
-  AtomicInt64 transferred_;
-  AtomicInt64 receivedMessages_;
+  std::atomic_int64_t transferred_;
+  std::atomic_int64_t receivedMessages_;
   int64_t oldCounter_;
   Timestamp startTime_;
   MutexLock mutex_;

@@ -1,6 +1,6 @@
 #include <muduo/net/TcpServer.h>
 
-#include <muduo/base/Atomic.h>
+#include <atomic>
 #include <muduo/base/FileUtil.h>
 #include <muduo/base/Logging.h>
 #include <muduo/base/ProcessInfo.h>
@@ -48,27 +48,27 @@ class EchoServer
     conn->setTcpNoDelay(true);
     if (conn->connected())
     {
-      connections_.increment();
+      connections_.fetch_add(1);
     }
     else
     {
-      connections_.decrement();
+      connections_.fetch_sub(1);
     }
   }
 
   void onMessage(const TcpConnectionPtr& conn, Buffer* buf, Timestamp)
   {
     size_t len = buf->readableBytes();
-    transferredBytes_.addAndGet(len);
-    receivedMessages_.incrementAndGet();
+    transferredBytes_.fetch_add(len);
+    receivedMessages_.fetch_add(1);
     conn->send(buf);
   }
 
   void printThroughput()
   {
     Timestamp endTime = Timestamp::now();
-    double bytes = static_cast<double>(transferredBytes_.getAndSet(0));
-    int msgs = receivedMessages_.getAndSet(0);
+    double bytes = static_cast<double>(transferredBytes_.exchange(0));
+    int msgs = receivedMessages_.exchange(0);
     double bytesPerMsg = msgs > 0 ?  bytes/msgs : 0;
     double time = timeDifference(endTime, startTime_);
     printf("%.3f MiB/s %.2f Kilo Msgs/s %.2f bytes per msg, ",
@@ -85,7 +85,7 @@ class EchoServer
   {
     string procStatus = ProcessInfo::procStatus();
     printf("%d conn, files %d , VmSize %ld KiB, RSS %ld KiB, ",
-           connections_.get(),
+           connections_.load(),
            ProcessInfo::openedFiles(),
            getLong(procStatus, "VmSize:"),
            getLong(procStatus, "VmRSS:"));
@@ -112,9 +112,9 @@ class EchoServer
   }
 
   TcpServer server_;
-  AtomicInt32 connections_;
-  AtomicInt32 receivedMessages_;
-  AtomicInt64 transferredBytes_;
+  std::atomic_int32_t connections_;
+  std::atomic_int32_t receivedMessages_;
+  std::atomic_int64_t transferredBytes_;
   Timestamp startTime_;
 };
 

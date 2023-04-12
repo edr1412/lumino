@@ -6,7 +6,7 @@
 #ifndef MUDUO_BASE_THREAD_H
 #define MUDUO_BASE_THREAD_H
 
-#include <muduo/base/Atomic.h>
+#include <atomic>
 #include <muduo/base/CountDownLatch.h>
 #include <muduo/base/Types.h>
 
@@ -34,7 +34,7 @@ class Thread : noncopyable
   pid_t tid() const { return tid_; }
   const string& name() const { return name_; }
 
-  static int numCreated() { return numCreated_.get(); }
+  static int numCreated() { return numCreated_.load(); }
 
  private:
   void setDefaultName();
@@ -47,7 +47,7 @@ class Thread : noncopyable
   string     name_;
   CountDownLatch latch_;
 
-  static AtomicInt32 numCreated_;
+  static std::atomic_int32_t numCreated_;
 };
 
 }  // namespace muduo

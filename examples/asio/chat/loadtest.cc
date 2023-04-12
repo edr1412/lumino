@@ -1,6 +1,6 @@
 #include "codec.h"
 
-#include <muduo/base/Atomic.h>
+#include <atomic>
 #include <muduo/base/Logging.h>
 #include <muduo/base/Mutex.h>
 #include <muduo/net/EventLoop.h>
@@ -14,8 +14,8 @@ using namespace muduo;
 using namespace muduo::net;
 
 int g_connections = 0;
-AtomicInt32 g_aliveConnections;
-AtomicInt32 g_messagesReceived;
+std::atomic_int32_t g_aliveConnections;
+std::atomic_int32_t g_messagesReceived;
 Timestamp g_startTime;
 std::vector<Timestamp> g_receiveTime;
 EventLoop* g_loop;
@@ -58,7 +58,7 @@ class ChatClient : noncopyable
     if (conn->connected())
     {
       connection_ = conn;
-      if (g_aliveConnections.incrementAndGet() == g_connections)
+      if (g_aliveConnections.fetch_add(1) + 1 == g_connections)
       {
         LOG_INFO << "all connected";
         loop_->runAfter(10.0, std::bind(&ChatClient::send, this));
@@ -76,7 +76,7 @@ class ChatClient : noncopyable
   {
     // printf("<<< %s\n", message.c_str());
     receiveTime_ = loop_->pollReturnTime();
-    int received = g_messagesReceived.incrementAndGet();
+    int received = g_messagesReceived.fetch_add(1) + 1;
     if (received == g_connections)
     {
       Timestamp endTime = Timestamp::now();

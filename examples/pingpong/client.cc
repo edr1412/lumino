@@ -117,7 +117,7 @@ class Client : noncopyable
 
   void onConnect()
   {
-    if (numConnected_.incrementAndGet() == sessionCount_)
+    if (numConnected_.fetch_add(1) + 1 == sessionCount_)
     {
       LOG_WARN << "all connected";
     }
@@ -125,7 +125,7 @@ class Client : noncopyable
 
   void onDisconnect(const TcpConnectionPtr& conn)
   {
-    if (numConnected_.decrementAndGet() == 0)
+    if (numConnected_.fetch_sub(1) - 1 == 0)
     {
       LOG_WARN << "all disconnected";
 
@@ -168,7 +168,7 @@ class Client : noncopyable
   int timeout_;
   std::vector<std::unique_ptr<Session>> sessions_;
   string message_;
-  AtomicInt32 numConnected_;
+  std::atomic_int32_t numConnected_;
 };
 
 void Session::onConnection(const TcpConnectionPtr& conn)

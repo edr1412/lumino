@@ -156,7 +156,7 @@ class Balancer : noncopyable
 
   void initPerThread(EventLoop* ioLoop)
   {
-    int count = threadCount_.getAndAdd(1);
+    int count = threadCount_.fetch_add(1);
     LOG_INFO << "IO thread " << count;
     PerThread& t = t_backends_.value();
     t.current = count % backends_.size();
@@ -202,7 +202,7 @@ class Balancer : noncopyable
   TcpServer server_;
   RpcCodec codec_;
   std::vector<InetAddress> backends_;
-  AtomicInt32 threadCount_;
+  std::atomic_int32_t threadCount_;
   ThreadLocal<PerThread> t_backends_;
 };
 
