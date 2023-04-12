@@ -42,7 +42,7 @@ TcpConnection::TcpConnection(EventLoop* loop,
                              const InetAddress& peerAddr)
   : loop_(CHECK_NOTNULL(loop)),
     name_(nameArg),
-    state_(kConnecting),
+    state_(StateE::kConnecting),
     reading_(true),
     socket_(new Socket(sockfd)),
     channel_(new Channel(loop, sockfd)),
@@ -68,7 +68,7 @@ TcpConnection::~TcpConnection()
   LOG_DEBUG << "TcpConnection::dtor[" <<  name_ << "] at " << this
             << " fd=" << channel_->fd()
             << " state=" << stateToString();
-  assert(state_ == kDisconnected);
+  assert(state_ == StateE::kDisconnected);
 }
 
 bool TcpConnection::getTcpInfo(struct tcp_info* tcpi) const
@@ -86,12 +86,12 @@ string TcpConnection::getTcpInfoString() const
 
 void TcpConnection::send(const void* data, int len)
 {
-  send(StringPiece(static_cast<const char*>(data), len));
+  send(std::string_view(static_cast<const char*>(data), len));
 }
 
-void TcpConnection::send(const StringPiece& message)
+void TcpConnection::send(const std::string_view& message)
 {
-  if (state_ == kConnected)
+  if (state_ == StateE::kConnected)
   {
     if (loop_->isInLoopThread())
     {
@@ -99,12 +99,41 @@ void TcpConnection::send(const StringPiece& message)
     }
     else
     {
-      void (TcpConnection::*fp)(const StringPiece& message) = &TcpConnection::sendInLoop;
+      void (TcpConnection::*fp)(const std::string_view& message) = &TcpConnection::sendInLoop;
       loop_->runInLoop(
           std::bind(fp,
-                    this,     // FIXME
-                    string(message)));
+                    shared_from_this(),
+                    string(message))); // 如果传入的是右值std::string 隐式转换为std::string_view，在这里会发生拷贝
                     //std::forward<string>(message)));
+    }
+  }
+}
+
+void TcpConnection::send(const char* message)
+{
+  send(std::string_view(message));
+}
+
+void TcpConnection::send(const std::string& message)
+{
+  send(std::string_view(message));
+}
+
+void TcpConnection::send(std::string&& message)
+{
+  if (state_ == StateE::kConnected)
+  {
+    if (loop_->isInLoopThread())
+    {
+      sendInLoop(std::move(message)); // 这种情况下，避免了拷贝
+    }
+    else
+    {
+      void (TcpConnection::*fp)(const std::string_view& message) = &TcpConnection::sendInLoop;
+      loop_->runInLoop(
+          std::bind(fp,
+                    shared_from_this(),
+                    string(message))); // 为避免message 被销毁，这里需要拷贝
     }
   }
 }
@@ -112,7 +141,7 @@ void TcpConnection::send(const StringPiece& message)
 // FIXME efficiency!!!
 void TcpConnection::send(Buffer* buf)
 {
-  if (state_ == kConnected)
+  if (state_ == StateE::kConnected)
   {
     if (loop_->isInLoopThread())
     {
@@ -121,19 +150,24 @@ void TcpConnection::send(Buffer* buf)
     }
     else
     {
-      void (TcpConnection::*fp)(const StringPiece& message) = &TcpConnection::sendInLoop;
+      void (TcpConnection::*fp)(const std::string_view& message) = &TcpConnection::sendInLoop;
       loop_->runInLoop(
           std::bind(fp,
-                    this,     // FIXME
+                    shared_from_this(),
                     buf->retrieveAllAsString()));
                     //std::forward<string>(message)));
     }
   }
 }
 
-void TcpConnection::sendInLoop(const StringPiece& message)
+void TcpConnection::sendInLoop(const std::string_view& message)
 {
   sendInLoop(message.data(), message.size());
+}
+
+void TcpConnection::sendInLoop(std::string&& message)
+{
+  sendInLoop(message.c_str(), message.size());
 }
 
 void TcpConnection::sendInLoop(const void* data, size_t len)
@@ -142,7 +176,7 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
   ssize_t nwrote = 0;
   size_t remaining = len;
   bool faultError = false;
-  if (state_ == kDisconnected)
+  if (state_ == StateE::kDisconnected)
   {
     LOG_WARN << "disconnected, give up writing";
     return;
@@ -196,12 +230,17 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
 
 void TcpConnection::shutdown()
 {
-  // FIXME: use compare and swap
-  if (state_ == kConnected)
+  // if (state_ == StateE::kConnected)
+  // {
+  //   setState(StateE::kDisconnecting);
+  //   loop_->runInLoop(std::bind(&TcpConnection::shutdownInLoop, shared_from_this()));
+  // }
+
+  // The compare and swap way
+  StateE Connected = StateE::kConnected;
+  if (state_.compare_exchange_strong(Connected, StateE::kDisconnecting))
   {
-    setState(kDisconnecting);
-    // FIXME: shared_from_this()?
-    loop_->runInLoop(std::bind(&TcpConnection::shutdownInLoop, this));
+    loop_->runInLoop(std::bind(&TcpConnection::shutdownInLoop, shared_from_this()));
   }
 }
 
@@ -218,9 +257,9 @@ void TcpConnection::shutdownInLoop()
 // void TcpConnection::shutdownAndForceCloseAfter(double seconds)
 // {
 //   // FIXME: use compare and swap
-//   if (state_ == kConnected)
+//   if (state_ == StateE::kConnected)
 //   {
-//     setState(kDisconnecting);
+//     setState(StateE::kDisconnecting);
 //     loop_->runInLoop(std::bind(&TcpConnection::shutdownAndForceCloseInLoop, this, seconds));
 //   }
 // }
@@ -241,19 +280,39 @@ void TcpConnection::shutdownInLoop()
 
 void TcpConnection::forceClose()
 {
-  // FIXME: use compare and swap
-  if (state_ == kConnected || state_ == kDisconnecting)
+  // if (state_ == StateE::kConnected || state_ == StateE::kDisconnecting)
+  // {
+  //   setState(StateE::kDisconnecting);
+  //   loop_->queueInLoop(std::bind(&TcpConnection::forceCloseInLoop, shared_from_this()));
+  // }
+
+  // The compare and swap way
+  StateE Connected = StateE::kConnected;
+  StateE Disconnecting = StateE::kDisconnecting;
+  if (state_.compare_exchange_strong(Connected, Disconnecting) ||
+      state_.compare_exchange_strong(Disconnecting, Disconnecting))
   {
-    setState(kDisconnecting);
     loop_->queueInLoop(std::bind(&TcpConnection::forceCloseInLoop, shared_from_this()));
   }
 }
 
 void TcpConnection::forceCloseWithDelay(double seconds)
 {
-  if (state_ == kConnected || state_ == kDisconnecting)
+  // if (state_ == StateE::kConnected || state_ == StateE::kDisconnecting)
+  // {
+  //   setState(StateE::kDisconnecting);
+  //   loop_->runAfter(
+  //       seconds,
+  //       makeWeakCallback(shared_from_this(),
+  //                        &TcpConnection::forceClose));  // not forceCloseInLoop to avoid race condition
+  // }
+
+  // The compare and swap way
+  StateE Connected = StateE::kConnected;
+  StateE Disconnecting = StateE::kDisconnecting;
+  if (state_.compare_exchange_strong(Connected, Disconnecting) ||
+      state_.compare_exchange_strong(Disconnecting, Disconnecting))
   {
-    setState(kDisconnecting);
     loop_->runAfter(
         seconds,
         makeWeakCallback(shared_from_this(),
@@ -264,7 +323,7 @@ void TcpConnection::forceCloseWithDelay(double seconds)
 void TcpConnection::forceCloseInLoop()
 {
   loop_->assertInLoopThread();
-  if (state_ == kConnected || state_ == kDisconnecting)
+  if (state_ == StateE::kConnected || state_ == StateE::kDisconnecting)
   {
     // as if we received 0 byte in handleRead();
     handleClose();
@@ -273,15 +332,15 @@ void TcpConnection::forceCloseInLoop()
 
 const char* TcpConnection::stateToString() const
 {
-  switch (state_)
+  switch (state_.load())
   {
-    case kDisconnected:
+    case StateE::kDisconnected:
       return "kDisconnected";
-    case kConnecting:
+    case StateE::kConnecting:
       return "kConnecting";
-    case kConnected:
+    case StateE::kConnected:
       return "kConnected";
-    case kDisconnecting:
+    case StateE::kDisconnecting:
       return "kDisconnecting";
     default:
       return "unknown state";
@@ -326,8 +385,8 @@ void TcpConnection::stopReadInLoop()
 void TcpConnection::connectEstablished()
 {
   loop_->assertInLoopThread();
-  assert(state_ == kConnecting);
-  setState(kConnected);
+  assert(state_ == StateE::kConnecting);
+  setState(StateE::kConnected);
   channel_->tie(shared_from_this());
   channel_->enableReading();
 
@@ -337,10 +396,11 @@ void TcpConnection::connectEstablished()
 void TcpConnection::connectDestroyed()
 {
   loop_->assertInLoopThread();
-  // 某些情况下可以不经由handleClose()而直接调用connectDestroyed()
-  if (state_ == kConnected)
+  // 这部分代码和 handleClose 中的代码有重复部分，
+  // 因为某些情况下可以不经由handleClose()而直接调用connectDestroyed()
+  if (state_ == StateE::kConnected)
   {
-    setState(kDisconnected);
+    setState(StateE::kDisconnected);
     channel_->disableAll();
 
     connectionCallback_(shared_from_this());
@@ -388,7 +448,7 @@ void TcpConnection::handleWrite()
           loop_->queueInLoop(std::bind(writeCompleteCallback_, shared_from_this()));
         }
         // 如果这时连接正在关闭，则调用shutdownInLoop()，继续执行关闭过程。
-        if (state_ == kDisconnecting)
+        if (state_ == StateE::kDisconnecting)
         {
           shutdownInLoop();
         }
@@ -397,7 +457,7 @@ void TcpConnection::handleWrite()
     else
     {
       LOG_SYSERR << "TcpConnection::handleWrite";
-      // if (state_ == kDisconnecting)
+      // if (state_ == StateE::kDisconnecting)
       // {
       //   shutdownInLoop();
       // }
@@ -414,9 +474,9 @@ void TcpConnection::handleClose()
 {
   loop_->assertInLoopThread();
   LOG_TRACE << "fd = " << channel_->fd() << " state = " << stateToString();
-  assert(state_ == kConnected || state_ == kDisconnecting);
+  assert(state_ == StateE::kConnected || state_ == StateE::kDisconnecting);
   // we don't close fd, leave it to dtor, so we can find leaks easily.
-  setState(kDisconnected);
+  setState(StateE::kDisconnected);
   channel_->disableAll();
 
   TcpConnectionPtr guardThis(shared_from_this());

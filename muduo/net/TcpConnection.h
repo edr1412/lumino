@@ -20,6 +20,7 @@
 
 #include <any>
 #include <memory>
+#include <atomic>
 
 // struct tcp_info is in <netinet/tcp.h>
 struct tcp_info;
@@ -56,16 +57,18 @@ class TcpConnection : noncopyable,
   const string& name() const { return name_; }
   const InetAddress& localAddress() const { return localAddr_; }
   const InetAddress& peerAddress() const { return peerAddr_; }
-  bool connected() const { return state_ == kConnected; }
-  bool disconnected() const { return state_ == kDisconnected; }
+  bool connected() const { return state_ == StateE::kConnected; }
+  bool disconnected() const { return state_ == StateE::kDisconnected; }
   // return true if success.
   bool getTcpInfo(struct tcp_info*) const;
   string getTcpInfoString() const;
 
-  // void send(string&& message); // C++11
+  void send(const char* message); // 避免二义性
+  void send(const string& message); // 避免二义性
+  void send(string&& message); // 右值引用版本
   void send(const void* message, int len);
-  void send(const StringPiece& message);
-  // void send(Buffer&& message); // C++11
+  void send(const std::string_view& message);
+  // void send(Buffer&& message); 
   void send(Buffer* message);  // this one will swap data
   void shutdown(); // NOT thread safe, no simultaneous calling
   // void shutdownAndForceCloseAfter(double seconds); // NOT thread safe, no simultaneous calling
@@ -95,6 +98,9 @@ class TcpConnection : noncopyable,
   void setWriteCompleteCallback(const WriteCompleteCallback& cb)
   { writeCompleteCallback_ = cb; }
 
+  // 假设存在 client —— proxy —— server 的业务场景，设置
+  // HighWaterMarkCallback 可以避免因 server 和 client 之间发送数据
+  // 速度的差异而导致 proxy 的 Buffer 被撑爆
   void setHighWaterMarkCallback(const HighWaterMarkCallback& cb, size_t highWaterMark)
   { highWaterMarkCallback_ = cb; highWaterMark_ = highWaterMark; }
 
@@ -106,6 +112,8 @@ class TcpConnection : noncopyable,
   { return &outputBuffer_; }
 
   /// Internal use only.
+  /// closeCallback_ 主要是提供给 TcpServer 和 TcpClient 使用的，
+  /// 用来通知他们移除所持有的 TcpConnectionPtr 的，而不是提供给普通用户使用的
   void setCloseCallback(const CloseCallback& cb)
   { closeCallback_ = cb; }
 
@@ -115,25 +123,32 @@ class TcpConnection : noncopyable,
   void connectDestroyed();  // should be called only once
 
  private:
-  enum StateE { kDisconnected, kConnecting, kConnected, kDisconnecting };
+  enum class StateE {
+    kDisconnected,
+    kConnecting,
+    kConnected,
+    kDisconnecting,
+  };
+  void setState(StateE s) { state_.store(s); }
+  const char* stateToString() const;
+  // 处理函数
   void handleRead(Timestamp receiveTime);
   void handleWrite();
   void handleClose();
   void handleError();
-  // void sendInLoop(string&& message);
-  void sendInLoop(const StringPiece& message);
+  void sendInLoop(string&& message);
+  void sendInLoop(const std::string_view& message);
   void sendInLoop(const void* message, size_t len);
+
   void shutdownInLoop();
   // void shutdownAndForceCloseInLoop(double seconds);
   void forceCloseInLoop();
-  void setState(StateE s) { state_ = s; }
-  const char* stateToString() const;
   void startReadInLoop();
   void stopReadInLoop();
 
   EventLoop* loop_;
   const string name_;
-  StateE state_;  // FIXME: use atomic variable
+  std::atomic<StateE> state_;
   bool reading_;
   // we don't expose those classes to client.
   std::unique_ptr<Socket> socket_;
@@ -152,12 +167,14 @@ class TcpConnection : noncopyable,
   size_t highWaterMark_;
   Buffer inputBuffer_;
   Buffer outputBuffer_; // FIXME: use list<Buffer> as output buffer.
+  // context 用于保存与 connection 绑定的任意数据，
+  // 这样客户代码不必继承 TCPConnection 也可以 attach 自己的状态。
   std::any context_;
   // FIXME: creationTime_, lastReceiveTime_
   //        bytesReceived_, bytesSent_
 };
 
-typedef std::shared_ptr<TcpConnection> TcpConnectionPtr;
+using TcpConnectionPtr = std::shared_ptr<TcpConnection>;
 
 }  // namespace net
 }  // namespace muduo
