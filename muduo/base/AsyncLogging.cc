@@ -15,7 +15,7 @@ AsyncLogging::AsyncLogging(const string& basename,
                            off_t rollSize,
                            int flushInterval)
   : flushInterval_(flushInterval),
-    running_(false),
+    running_(true),
     basename_(basename),
     rollSize_(rollSize),
     thread_(std::bind(&AsyncLogging::threadFunc, this), "Logging"),
