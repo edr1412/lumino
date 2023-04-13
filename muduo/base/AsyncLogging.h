@@ -40,7 +40,7 @@ class AsyncLogging : noncopyable
   void start()
   {
     running_ = true;
-    thread_.start();
+    //thread_.start();
     latch_.wait();
   }
 
@@ -55,7 +55,7 @@ class AsyncLogging : noncopyable
 
   void threadFunc();
 
-  typedef muduo::detail::FixedBuffer<muduo::detail::kLargeBuffer> Buffer;
+  typedef muduo::detail::FixedBuffer<muduo::detail::kLargeBuffer> Buffer; // Large Buffer Type
   typedef std::vector<std::unique_ptr<Buffer>> BufferVector;
   typedef BufferVector::value_type BufferPtr;
 

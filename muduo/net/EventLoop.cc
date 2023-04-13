@@ -28,7 +28,7 @@ namespace
 {
 
 // 本线程的EventLoop对象。每个线程至多有一个EventLoop对象。
-__thread EventLoop* t_loopInThisThread = 0;
+thread_local EventLoop* t_loopInThisThread = 0;
 
 const int kPollTimeMs = 10000;
 

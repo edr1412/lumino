@@ -54,7 +54,6 @@ int main()
 {
   muduo::Singleton<Test>::instance().setName("only one");
   muduo::Thread t1(threadFunc);
-  t1.start();
   t1.join();
   printf("tid=%d, %p name=%s\n",
          muduo::CurrentThread::tid(),

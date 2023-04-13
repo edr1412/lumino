@@ -182,7 +182,7 @@
   * Avoid deleting incomplete types.
   * Replace delete with boost::ptr_vector
   * Destructs ThreadLocalSingleton
-  * Replace __thread object with ThreadLocalSingleton in examples/asio/chat/
+  * Replace thread_local object with ThreadLocalSingleton in examples/asio/chat/
   * Fix compile with g++ 4.6
   * With armlinux.diff, muduo compiles on Raspberry Pi with g++ 4.5.
   * Version 0.7.0

@@ -41,7 +41,6 @@ void ThreadPool::start(int numThreads)
     snprintf(id, sizeof id, "%d", i+1);
     threads_.emplace_back(new muduo::Thread(
           std::bind(&ThreadPool::runInThread, this), name_+id));
-    threads_[i]->start();
   }
   if (numThreads == 0 && threadInitCallback_)
   {

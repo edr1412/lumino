@@ -161,7 +161,7 @@ diff --git a/muduo/net/EventLoop.cc b/muduo/net/EventLoop.cc
  
  using namespace muduo;
  using namespace muduo::net;
-@@ -29,18 +30,6 @@ __thread EventLoop* t_loopInThisThread = 0;
+@@ -29,18 +30,6 @@ thread_local EventLoop* t_loopInThisThread = 0;
  
  const int kPollTimeMs = 10000;
  

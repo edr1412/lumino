@@ -22,7 +22,7 @@ namespace muduo
 {
 namespace detail
 {
-__thread int t_numOpenedFiles = 0;
+thread_local int t_numOpenedFiles = 0;
 int fdDirFilter(const struct dirent* d)
 {
   if (::isdigit(d->d_name[0]))
@@ -32,7 +32,7 @@ int fdDirFilter(const struct dirent* d)
   return 0;
 }
 
-__thread std::vector<pid_t>* t_pids = NULL;
+thread_local std::vector<pid_t>* t_pids = NULL;
 int taskDirFilter(const struct dirent* d)
 {
   if (::isdigit(d->d_name[0]))

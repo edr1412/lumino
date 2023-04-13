@@ -346,7 +346,7 @@ int main(int argc, char* argv[])
     InetAddress listenAddr(port);
 
     // EventLoopThread inspectThread;
-    // new Inspector(inspectThread.startLoop(), InetAddress(8080), "rpcbalancer");
+    // new Inspector(inspectThread.getLoop(), InetAddress(8080), "rpcbalancer");
     EventLoop loop;
     Balancer balancer(&loop, listenAddr, "RpcBalancer", backends);
     balancer.setThreadNum(4);

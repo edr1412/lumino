@@ -52,7 +52,6 @@ int main()
   testObj1.value().setName("main one");
   print();
   muduo::Thread t1(threadFunc);
-  t1.start();
   t1.join();
   testObj2.value().setName("main two");
   print();

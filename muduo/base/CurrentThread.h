@@ -7,16 +7,26 @@
 #define MUDUO_BASE_CURRENTTHREAD_H
 
 #include <muduo/base/Types.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#include <string>
 
 namespace muduo
 {
+
+namespace detail {
+inline pid_t gettid() { return static_cast<pid_t>(::syscall(SYS_gettid)); }
+
+}  // namespace detail
 namespace CurrentThread
 {
   // internal
-  extern __thread int t_cachedTid;
-  extern __thread char t_tidString[32];
-  extern __thread int t_tidStringLength;
-  extern __thread const char* t_threadName;
+  extern thread_local int t_cachedTid;
+  extern thread_local char t_tidString[32];
+  extern thread_local int t_tidStringLength;
+  extern thread_local const char* t_threadName;
   void cacheTid();
 
   inline int tid()

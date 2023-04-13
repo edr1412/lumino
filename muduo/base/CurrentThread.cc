@@ -13,10 +13,10 @@ namespace muduo
 {
 namespace CurrentThread
 {
-__thread int t_cachedTid = 0;
-__thread char t_tidString[32];
-__thread int t_tidStringLength = 6;
-__thread const char* t_threadName = "unknown";
+thread_local int t_cachedTid = 0;
+thread_local char t_tidString[32];
+thread_local int t_tidStringLength = 6;
+thread_local const char* t_threadName = "unknown";
 static_assert(std::is_same<int, pid_t>::value, "pid_t should be int");
 
 string stackTrace(bool demangle)
@@ -71,6 +71,24 @@ string stackTrace(bool demangle)
     free(strings);
   }
   return stack;
+}
+
+void cacheTid() {
+  if (t_cachedTid == 0) {
+    //获取线程的 pid_t
+    t_cachedTid = detail::gettid();
+    t_tidStringLength = snprintf(t_tidString, sizeof t_tidString, "%5d ", t_cachedTid);
+  }
+}
+
+bool isMainThread() { return tid() == ::getpid(); }
+
+void sleepUsec(int64_t usec) {
+  static const int kMicroSecondsPerSecond = 1000 * 1000;
+  struct timespec ts = {0, 0};
+  ts.tv_sec = static_cast<time_t>(usec / kMicroSecondsPerSecond);
+  ts.tv_nsec = static_cast<long>(usec % kMicroSecondsPerSecond * 1000);
+  ::nanosleep(&ts, NULL);
 }
 
 }  // namespace CurrentThread

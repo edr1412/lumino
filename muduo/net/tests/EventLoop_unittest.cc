@@ -36,7 +36,6 @@ int main()
   assert(EventLoop::getEventLoopOfCurrentThread() == &loop);
 
   Thread thread(threadFunc);
-  thread.start();
 
   loop.loop();
 }

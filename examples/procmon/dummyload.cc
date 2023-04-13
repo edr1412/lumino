@@ -140,7 +140,6 @@ int main(int argc, char* argv[])
   for (int i = 0; i < numThreads; ++i)
   {
     threads.emplace_back(new Thread(threadFunc));
-    threads.back()->start();
   }
 
   switch (argv[1][0])

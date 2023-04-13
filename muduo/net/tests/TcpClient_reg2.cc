@@ -25,6 +25,5 @@ int main(int argc, char* argv[])
   EventLoop loop;
   loop.runAfter(3.0, std::bind(&EventLoop::quit, &loop));
   Thread thr(std::bind(threadFunc, &loop));
-  thr.start();
   loop.loop();
 }

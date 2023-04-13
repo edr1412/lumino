@@ -21,6 +21,9 @@ namespace detail
 const int kSmallBuffer = 4000;
 const int kLargeBuffer = 4000*1000;
 
+// 模板类FixedBuffer，内部是用数组char data_[SIZE]存储，
+// 用指针char* cur_表示当前待写数据的位置。
+// 对FixedBuffer<>的各种操作，实际上是对data_数组和cur_指针的操作。
 template<int SIZE>
 class FixedBuffer : noncopyable
 {
@@ -70,6 +73,9 @@ class FixedBuffer : noncopyable
   static void cookieStart();
   static void cookieEnd();
 
+  // 所谓的 Cookie 实际上是一个函数指针 void (*cookie_)() ，主要起到了一个标志物的作用。
+  // 每一个 FixedBuffer 对象在生命周期的开始和结束，都会被打上对应的 Cookie(cookieStart 和 cookieEnd)。
+  // 当程序崩溃时，我们可以借由这一对 cookie，利用 gdb 在 coredump 文件当中找到遗留在内存中尚未输入到文件当中的日志信息。
   void (*cookie_)();
   char data_[SIZE];
   char* cur_;
@@ -81,8 +87,11 @@ class LogStream : noncopyable
 {
   typedef LogStream self;
  public:
-  typedef detail::FixedBuffer<detail::kSmallBuffer> Buffer;
+  // Small Buffer，是模板类FixedBuffer<>的一个具现，i.e.FixedBuffer，默认大小4KB，用于存放一条log消息。为前端类LogStream持有。
+  // 相对的，还有Large Buffer，也是FixedBuffer的一个具现，FixedBuffer，默认大小4MB，用于存放多条log消息。为后端类AsyncLogging持有。
+  typedef detail::FixedBuffer<detail::kSmallBuffer> Buffer; // Small Buffer Type
 
+  // LogStream重载了一系列operator<<操作符，用于将数据格式化为字符串，并添加到 LogStream::buffer_ 末尾。这就是它的主要功能。
   self& operator<<(bool v)
   {
     buffer_.append(v ? "1" : "0", 1);
@@ -158,6 +167,7 @@ class LogStream : noncopyable
   void resetBuffer() { buffer_.reset(); }
 
  private:
+  // 静态检查，确保kMaxNumericSize取值，能满足Small Buffer剩余空间一定能存放下要格式化的数据
   void staticCheck();
 
   template<typename T>

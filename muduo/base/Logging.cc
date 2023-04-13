@@ -35,13 +35,14 @@ class LoggerImpl
 };
 */
 
-__thread char t_errnobuf[512];
-__thread char t_time[64];
-__thread time_t t_lastSecond;
+thread_local char t_errnobuf[512]; // 主要供 strerror_tl 函数使用
+thread_local char t_time[64]; //  保存了精度到秒的时间
+thread_local time_t t_lastSecond;  // 保存了上次格式化时间的秒数。如果时间间隔低于 1 秒，则直接读取 t_time 中的时间，并更新微秒数
 
+// 自定义函数strerror_tl将错误号转换为字符串, 相当于strerror_r(3)
 const char* strerror_tl(int savedErrno)
 {
-  return strerror_r(savedErrno, t_errnobuf, sizeof t_errnobuf);
+  return strerror_r(savedErrno, t_errnobuf, sizeof t_errnobuf); // t_errnobuf 是线程局部变量，保证线程安全
 }
 
 Logger::LogLevel initLogLevel()
@@ -97,6 +98,7 @@ void defaultOutput(const char* msg, int len)
 {
   size_t n = fwrite(msg, 1, len, stdout);
   //FIXME check n
+  // assert(n == len);
   (void)n;
 }
 
@@ -105,6 +107,8 @@ void defaultFlush()
   fflush(stdout);
 }
 
+// Logger类定义了2个函数指针，用于设置日志的输出位置（g_output），冲刷日志（g_flush）。
+// 默认向stdout输出、冲刷。这只能将数据以非线程安全方式输出到stdout，还不能实现异步记录log消息。
 Logger::OutputFunc g_output = defaultOutput;
 Logger::FlushFunc g_flush = defaultFlush;
 TimeZone g_logTimeZone;
@@ -113,6 +117,7 @@ TimeZone g_logTimeZone;
 
 using namespace muduo;
 
+// 在构造函数中，Logger::Impl::Impl()会将日志的时间、线程ID、日志级别、文件名、行号等信息写入到LogStream中，这是日志的前缀信息。
 Logger::Impl::Impl(LogLevel level, int savedErrno, const SourceFile& file, int line)
   : time_(Timestamp::now()),
     stream_(),
@@ -124,7 +129,7 @@ Logger::Impl::Impl(LogLevel level, int savedErrno, const SourceFile& file, int l
   CurrentThread::tid();
   stream_ << T(CurrentThread::tidString(), CurrentThread::tidStringLength());
   stream_ << T(LogLevelName[level], 6);
-  if (savedErrno != 0)
+  if (savedErrno != 0) // 发生系统调用错误
   {
     stream_ << strerror_tl(savedErrno) << " (errno=" << savedErrno << ") ";
   }
@@ -194,14 +199,15 @@ Logger::Logger(SourceFile file, int line, bool toAbort)
 {
 }
 
+// 使用LOG_XXX宏会临时产生一个匿名对象，生命期结束时，会调用Logger的析构函数。在这里，将日志信息放入缓冲区中并发送给后端进行处理。
 Logger::~Logger()
 {
-  impl_.finish();
+  impl_.finish(); // 为LogStream对象stream_中的log消息加上后缀（文件名:行号，LF指换行符'\n'）
   const LogStream::Buffer& buf(stream().buffer());
-  g_output(buf.data(), buf.length());
-  if (impl_.level_ == FATAL)
+  g_output(buf.data(), buf.length()); // 将stream_缓存的log消息通过g_output回调写入指定文件流
+  if (impl_.level_ == FATAL) // 如果发生致命错误, 输出log并终止程序
   {
-    g_flush();
+    g_flush(); // 回调冲刷
     abort();
   }
 }
@@ -211,6 +217,9 @@ void Logger::setLogLevel(Logger::LogLevel level)
   g_logLevel = level;
 }
 
+// 提供2个static函数来设置g_output和g_flush
+// 用户代码可以这两个函数修改Logger的输出位置（需要同步修改）。
+// 一种典型的应用，就是将g_output重定位到后端AsyncLogging::append()，这样就可以异步地将日志写入文件。见AsyncLogging_test.cc
 void Logger::setOutput(OutputFunc out)
 {
   g_output = out;

@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
   if (parseCommandLine(argc, argv, &options))
   {
     // FIXME: how to destruct it safely ?
-    new Inspector(inspectThread.startLoop(), InetAddress(options.gperfport), "memcached-debug");
+    new Inspector(inspectThread.getLoop(), InetAddress(options.gperfport), "memcached-debug");
 
     MemcacheServer server(&loop, options);
     server.setThreadNum(options.threads);

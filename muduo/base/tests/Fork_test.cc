@@ -6,7 +6,7 @@
 
 namespace
 {
-__thread int x = 0;
+thread_local int x = 0;
 }
 
 void print()

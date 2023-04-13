@@ -114,7 +114,7 @@ uint16_t InetAddress::toPort() const
   return sockets::networkToHost16(portNetEndian());
 }
 
-static __thread char t_resolveBuffer[64 * 1024];
+static thread_local char t_resolveBuffer[64 * 1024];
 
 bool InetAddress::resolve(StringArg hostname, InetAddress* out)
 {

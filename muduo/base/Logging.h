@@ -14,6 +14,7 @@ namespace muduo
 
 class TimeZone;
 
+// Logger 提供用户接口，将实现细节隐藏到Impl，Logger定义一组宏定义LOG_XXX方便用户在前端使用日志库；
 class Logger
 {
  public:
@@ -37,6 +38,7 @@ class Logger
       : data_(arr),
         size_(N-1)
     {
+      //获得程序的名字
       const char* slash = strrchr(data_, '/'); // builtin function
       if (slash)
       {
@@ -79,19 +81,22 @@ class Logger
 
  private:
 
+// Logger::Impl是Logger的内部类，用构造和析构实现除正文部分，一条完整log消息的组装
+// 此处与常见的 Implp 的做法有所不同。主要还是因为 Logger 利用了栈上空间
+// 来处理流式日志风格的串话问题。而 Implp 的做法一般是使用指针指向一片动态内存区域。
 class Impl
 {
  public:
   typedef Logger::LogLevel LogLevel;
   Impl(LogLevel level, int old_errno, const SourceFile& file, int line);
-  void formatTime();
-  void finish();
+  void formatTime();  // 根据时区格式化当前时间字符串, 也是一条log消息的开头
+  void finish();      // 添加一条log消息的后缀
 
-  Timestamp time_;
-  LogStream stream_;
-  LogLevel level_;
-  int line_;
-  SourceFile basename_;
+  Timestamp time_;    // 用于获取当前时间
+  LogStream stream_;  // 用于格式化用户log数据, 提供operator<<接口, 保存log消息
+  LogLevel level_;    // 日志等级
+  int line_;          // 源代码所在行
+  SourceFile basename_; // 源代码所在文件名(不含路径)信息
 };
 
   Impl impl_;
@@ -121,6 +126,11 @@ inline Logger::LogLevel Logger::logLevel()
 //   else
 //     logWarnStream << "Bad news";
 //
+
+// 每个宏定义都构造了一个Logger临时对象，然后通过stream()，来达到写日志的功能
+// 这是栈上的匿名对象，避免了日志内容出现串话。
+// 使用日志宏得到的 Logger 对象都是一次性对象，用完就扔，需要了再创建。用户传入正文，而在构造和析构中，完成了日志消息的前缀和后缀的组装。
+// 当前日志消息等级，如果低于g_logLevel，就不会进行任何操作，几乎0开销；只有不低于g_logLevel等级的日志消息，才能被记录
 #define LOG_TRACE if (muduo::Logger::logLevel() <= muduo::Logger::TRACE) \
   muduo::Logger(__FILE__, __LINE__, muduo::Logger::TRACE, __func__).stream()
 #define LOG_DEBUG if (muduo::Logger::logLevel() <= muduo::Logger::DEBUG) \
@@ -140,6 +150,8 @@ const char* strerror_tl(int savedErrno);
 // Check that the input is non NULL.  This very useful in constructor
 // initializer lists.
 
+// CHECK_NOTNULL 宏的作用与 assert 相同，但优点是不会受到 NDEBUG
+// 模式的影响。即使在 Release 版本中也是有效的，有利于及早发现错误
 #define CHECK_NOTNULL(val) \
   ::muduo::CheckNotNull(__FILE__, __LINE__, "'" #val "' Must be non NULL", (val))
 

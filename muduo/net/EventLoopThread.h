@@ -11,7 +11,8 @@
 #ifndef MUDUO_NET_EVENTLOOPTHREAD_H
 #define MUDUO_NET_EVENTLOOPTHREAD_H
 
-#include <muduo/base/Condition.h>
+#include <mutex>
+#include <condition_variable>
 #include <muduo/base/Mutex.h>
 #include <muduo/base/Thread.h>
 
@@ -30,17 +31,18 @@ class EventLoopThread : noncopyable
   EventLoopThread(const ThreadInitCallback& cb = ThreadInitCallback(),
                   const string& name = string());
   ~EventLoopThread();
-  EventLoop* startLoop();
+  EventLoop* getLoop();
 
  private:
   void threadFunc();
 
   EventLoop* loop_ GUARDED_BY(mutex_);
+  std::mutex mutex_;
+  std::condition_variable cond_ GUARDED_BY(mutex_);
   bool exiting_;
-  Thread thread_;
-  MutexLock mutex_;
-  Condition cond_ GUARDED_BY(mutex_);
+  bool canGetLoop_;
   ThreadInitCallback callback_;
+  Thread thread_;
 };
 
 }  // namespace net

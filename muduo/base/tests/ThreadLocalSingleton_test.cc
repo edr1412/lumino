@@ -45,8 +45,6 @@ int main()
   muduo::ThreadLocalSingleton<Test>::instance().setName("main one");
   muduo::Thread t1(std::bind(threadFunc, "thread1"));
   muduo::Thread t2(std::bind(threadFunc, "thread2"));
-  t1.start();
-  t2.start();
   t1.join();
   printf("tid=%d, %p name=%s\n",
          muduo::CurrentThread::tid(),

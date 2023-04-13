@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
     uint16_t port = static_cast<uint16_t>(atoi(argv[2]));
     InetAddress serverAddr(argv[1], port);
 
-    ChatClient client(loopThread.startLoop(), serverAddr);
+    ChatClient client(loopThread.getLoop(), serverAddr);
     client.connect();
     std::string line;
     while (std::getline(std::cin, line))

@@ -58,7 +58,6 @@ int main(int argc, char* argv[])
   for (int i = 0; i < kThreads; ++i)
   {
     muduo::Thread t1(threadFunc);
-    t1.start();
     t1.join();
   }
 
@@ -70,7 +69,6 @@ int main(int argc, char* argv[])
   {
     muduo::Timestamp now(muduo::Timestamp::now());
     muduo::Thread t2(std::bind(threadFunc2, now));
-    t2.start();
     t2.join();
   }
   {

@@ -21,10 +21,6 @@ class Test
       threads_.emplace_back(new muduo::Thread(
             std::bind(&Test::threadFunc, this), muduo::string(name)));
     }
-    for (auto& thr : threads_)
-    {
-      thr->start();
-    }
   }
 
   void run(int times)

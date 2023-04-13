@@ -14,7 +14,7 @@ int main(int argc, char* argv[])
   EventLoopThread loopThread;
   {
   InetAddress serverAddr("127.0.0.1", 1234); // should succeed
-  TcpClient client(loopThread.startLoop(), serverAddr, "TcpClient");
+  TcpClient client(loopThread.getLoop(), serverAddr, "TcpClient");
   client.connect();
   CurrentThread::sleepUsec(500 * 1000);  // wait for connect
   client.disconnect();

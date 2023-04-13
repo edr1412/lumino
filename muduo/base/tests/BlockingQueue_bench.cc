@@ -23,10 +23,6 @@ class Bench
       threads_.emplace_back(new muduo::Thread(
             std::bind(&Bench::threadFunc, this), muduo::string(name)));
     }
-    for (auto& thr : threads_)
-    {
-      thr->start();
-    }
   }
 
   void run(int times)

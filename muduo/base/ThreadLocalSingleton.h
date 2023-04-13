@@ -68,12 +68,12 @@ class ThreadLocalSingleton : noncopyable
     pthread_key_t pkey_;
   };
 
-  static __thread T* t_value_;
+  static thread_local T* t_value_;
   static Deleter deleter_;
 };
 
 template<typename T>
-__thread T* ThreadLocalSingleton<T>::t_value_ = 0;
+thread_local T* ThreadLocalSingleton<T>::t_value_ = 0;
 
 template<typename T>
 typename ThreadLocalSingleton<T>::Deleter ThreadLocalSingleton<T>::deleter_;

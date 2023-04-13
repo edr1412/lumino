@@ -140,7 +140,7 @@ diff --git a/muduo/base/Logging.cc b/muduo/base/Logging.cc
 index 341d627..9376007 100644
 --- a/muduo/base/Logging.cc
 +++ b/muduo/base/Logging.cc
-@@ -36,7 +36,12 @@ __thread time_t t_lastSecond;
+@@ -36,7 +36,12 @@ thread_local time_t t_lastSecond;
  
  const char* strerror_tl(int savedErrno)
  {
@@ -379,7 +379,7 @@ index 7346838..19fde05 100644
  
  using namespace muduo;
  using namespace muduo::net;
-@@ -29,18 +30,6 @@ __thread EventLoop* t_loopInThisThread = 0;
+@@ -29,18 +30,6 @@ thread_local EventLoop* t_loopInThisThread = 0;
  
  const int kPollTimeMs = 10000;
  

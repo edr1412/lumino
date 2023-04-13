@@ -58,7 +58,7 @@ int main()
   sleep(1);
   {
     EventLoopThread loopThread;
-    EventLoop* loop = loopThread.startLoop();
+    EventLoop* loop = loopThread.getLoop();
     loop->runAfter(2, printTid);
     sleep(3);
     print("thread loop exits");

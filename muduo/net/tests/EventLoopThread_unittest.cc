@@ -32,7 +32,7 @@ int main()
   {
   // dtor calls quit()
   EventLoopThread thr2;
-  EventLoop* loop = thr2.startLoop();
+  EventLoop* loop = thr2.getLoop();
   loop->runInLoop(std::bind(print, loop));
   CurrentThread::sleepUsec(500 * 1000);
   }
@@ -40,7 +40,7 @@ int main()
   {
   // quit() before dtor
   EventLoopThread thr3;
-  EventLoop* loop = thr3.startLoop();
+  EventLoop* loop = thr3.getLoop();
   loop->runInLoop(std::bind(quit, loop));
   CurrentThread::sleepUsec(500 * 1000);
   }

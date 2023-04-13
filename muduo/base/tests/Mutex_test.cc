@@ -70,7 +70,6 @@ int main()
     for (int i = 0; i < nthreads; ++i)
     {
       threads.emplace_back(new Thread(&threadFunc));
-      threads.back()->start();
     }
     for (int i = 0; i < nthreads; ++i)
     {

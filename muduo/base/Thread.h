@@ -12,42 +12,31 @@
 
 #include <functional>
 #include <memory>
-#include <pthread.h>
+#include <thread>
 
 namespace muduo
 {
 
-class Thread : noncopyable
-{
+class Thread : noncopyable {
  public:
-  typedef std::function<void ()> ThreadFunc;
-
-  explicit Thread(ThreadFunc, const string& name = string());
-  // FIXME: make it movable in C++11
+  using ThreadFunc = std::function<void()>;
+  explicit Thread(ThreadFunc func, const std::string& name = std::string());
   ~Thread();
-
-  void start();
-  int join(); // return pthread_join()
-
-  bool started() const { return started_; }
-  // pthread_t pthreadId() const { return pthreadId_; }
+  Thread(Thread&& rhs) noexcept;
+  Thread& operator=(Thread&& rhs) noexcept;
+  void join();
   pid_t tid() const { return tid_; }
-  const string& name() const { return name_; }
-
-  static int numCreated() { return numCreated_.load(); }
+  static inline int numCreated() { return numCreated_.load(); }
 
  private:
-  void setDefaultName();
-
-  bool       started_;
-  bool       joined_;
-  pthread_t  pthreadId_;
-  pid_t      tid_;
+  
+  static std::atomic_int32_t numCreated_;
   ThreadFunc func_;
   string     name_;
-  CountDownLatch latch_;
-
-  static std::atomic_int32_t numCreated_;
+  pid_t      tid_;
+  //线程实体
+  std::thread thread_;
+  void runInThread();
 };
 
 }  // namespace muduo

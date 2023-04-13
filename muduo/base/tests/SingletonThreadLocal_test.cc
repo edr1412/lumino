@@ -49,8 +49,6 @@ int main()
   STL.setName("main one");
   muduo::Thread t1(std::bind(threadFunc, "thread1"));
   muduo::Thread t2(std::bind(threadFunc, "thread2"));
-  t1.start();
-  t2.start();
   t1.join();
   print();
   t2.join();

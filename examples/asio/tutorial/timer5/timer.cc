@@ -67,7 +67,7 @@ int main()
                                      // race condition of calling print2() on destructed object.
   muduo::net::EventLoop loop;
   muduo::net::EventLoopThread loopThread;
-  muduo::net::EventLoop* loopInAnotherThread = loopThread.startLoop();
+  muduo::net::EventLoop* loopInAnotherThread = loopThread.getLoop();
   printer.reset(new Printer(&loop, loopInAnotherThread));
   loop.loop();
 }

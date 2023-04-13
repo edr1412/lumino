@@ -157,7 +157,7 @@ class WordCountSender : muduo::noncopyable
 };
 
 WordCountSender::WordCountSender(const std::string& receivers)
-  : loop_(loopThread_.startLoop())
+  : loop_(loopThread_.getLoop())
 {
   typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
   boost::char_separator<char> sep(", ");

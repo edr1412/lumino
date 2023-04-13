@@ -9,7 +9,7 @@ int main()
 {
   EventLoop loop;
   EventLoopThread t;
-  Inspector ins(t.startLoop(), InetAddress(12345), "test");
+  Inspector ins(t.getLoop(), InetAddress(12345), "test");
   loop.loop();
 }
 

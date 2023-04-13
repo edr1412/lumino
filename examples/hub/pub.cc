@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
       if (g_content == "-")
       {
         EventLoopThread loopThread;
-        g_loop = loopThread.startLoop();
+        g_loop = loopThread.getLoop();
         PubSubClient client(g_loop, InetAddress(hostip, port), name);
         client.start();
 
