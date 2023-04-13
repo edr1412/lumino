@@ -15,6 +15,7 @@
 
 using namespace muduo;
 
+// AppendFile 封装了最底层的的写文件操作，供LogFile使用。
 FileUtil::AppendFile::AppendFile(StringArg filename)
   : fp_(::fopen(filename.c_str(), "ae")),  // 'e' for O_CLOEXEC
     writtenBytes_(0)

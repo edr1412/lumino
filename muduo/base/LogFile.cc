@@ -14,6 +14,7 @@
 
 using namespace muduo;
 
+// 提供日志文件操作，包括滚动日志文件、写日志文件。
 LogFile::LogFile(const string& basename,
                  off_t rollSize,
                  bool threadSafe,
@@ -24,7 +25,7 @@ LogFile::LogFile(const string& basename,
     flushInterval_(flushInterval),
     checkEveryN_(checkEveryN),
     count_(0),
-    mutex_(threadSafe ? new MutexLock : NULL),
+    mutex_(threadSafe ? new MutexLock : NULL), //根据mutex_指针是否为空，append()和flush()会自动选择线程安全版本，还是非线程安全版本。
     startOfPeriod_(0),
     lastRoll_(0),
     lastFlush_(0)
@@ -65,6 +66,9 @@ void LogFile::append_unlocked(const char* logline, int len)
 {
   file_->append(logline, len);
 
+  // 文件滚动的触发条件有两个：
+  // 1. 当文件的大小超过一定值后
+  // 2. 每隔一天滚动一次
   if (file_->writtenBytes() > rollSize_)
   {
     rollFile();
