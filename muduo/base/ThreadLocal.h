@@ -7,7 +7,8 @@
 #define MUDUO_BASE_THREADLOCAL_H
 
 #include <thread>
-
+// 陈硕使用了 ThreadLocal 类来绕开了 __thread 无法自动调用构造函数和析构函数的限制，
+// 而我使用 thread_local, 因此不再需要实现 ThreadLocal 类。
 /*
 #include <muduo/base/Mutex.h>  // MCHECK
 #include <muduo/base/noncopyable.h>
