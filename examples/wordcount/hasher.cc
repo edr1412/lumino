@@ -27,7 +27,7 @@ class SendThrottler : muduo::noncopyable
     : client_(loop, addr, "Sender"),
       connectLatch_(1),
       disconnectLatch_(1),
-      cond_(mutex_),
+      cond_(),
       congestion_(false)
   {
     LOG_INFO << "SendThrottler [" << addr.toIpPort() << "]";
@@ -110,7 +110,7 @@ class SendThrottler : muduo::noncopyable
     while (congestion_)
     {
       LOG_DEBUG << "wait ";
-      cond_.wait();
+      cond_.wait(lock);
     }
   }
 

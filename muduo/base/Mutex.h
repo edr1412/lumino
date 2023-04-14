@@ -9,7 +9,7 @@
 #include <muduo/base/CurrentThread.h>
 #include <muduo/base/noncopyable.h>
 #include <assert.h>
-#include <pthread.h>
+#include <mutex>
 
 // Thread safety annotations {
 // https://clang.llvm.org/docs/ThreadSafetyAnalysis.html
@@ -122,15 +122,13 @@ class CAPABILITY("mutex") MutexLock : noncopyable
 {
  public:
   MutexLock()
-    : holder_(0)
-  {
-    MCHECK(pthread_mutex_init(&mutex_, NULL));
-  }
+    : holder_(0),
+    mutex_()
+  {}
 
   ~MutexLock()
   {
     assert(holder_ == 0);
-    MCHECK(pthread_mutex_destroy(&mutex_));
   }
 
   // must be called when locked, i.e. for assertion
@@ -148,41 +146,20 @@ class CAPABILITY("mutex") MutexLock : noncopyable
 
   void lock() ACQUIRE()
   {
-    MCHECK(pthread_mutex_lock(&mutex_));
+    mutex_.lock();
     assignHolder();
   }
 
   void unlock() RELEASE()
   {
     unassignHolder();
-    MCHECK(pthread_mutex_unlock(&mutex_));
-  }
-
-  pthread_mutex_t* getPthreadMutex() /* non-const */
-  {
-    return &mutex_;
+    mutex_.unlock();
   }
 
  private:
-  friend class Condition;
-
-  class UnassignGuard : noncopyable
-  {
-   public:
-    explicit UnassignGuard(MutexLock& owner)
-      : owner_(owner)
-    {
-      owner_.unassignHolder();
-    }
-
-    ~UnassignGuard()
-    {
-      owner_.assignHolder();
-    }
-
-   private:
-    MutexLock& owner_;
-  };
+  friend class MutexLockGuard;
+  // 仅供 MutexLockGuard 使用，严禁用户调用
+  std::mutex &getMutex() { return mutex_; }
 
   void unassignHolder()
   {
@@ -194,8 +171,8 @@ class CAPABILITY("mutex") MutexLock : noncopyable
     holder_ = CurrentThread::tid();
   }
 
-  pthread_mutex_t mutex_;
   pid_t holder_;
+  std::mutex mutex_;
 };
 
 // Use as a stack variable, eg.
@@ -204,23 +181,29 @@ class CAPABILITY("mutex") MutexLock : noncopyable
 //   MutexLockGuard lock(mutex_);
 //   return data_.size();
 // }
+
+// 注意：保留了 MutexLockGuard 写法，实际上应该命名为 UniqueLock 才对
 class SCOPED_CAPABILITY MutexLockGuard : noncopyable
 {
  public:
   explicit MutexLockGuard(MutexLock& mutex) ACQUIRE(mutex)
-    : mutex_(mutex)
+    : mutex_(mutex),
+     lck_(mutex.getMutex())
   {
-    mutex_.lock();
+    mutex_.assignHolder();
   }
 
   ~MutexLockGuard() RELEASE()
   {
-    mutex_.unlock();
+    mutex_.unassignHolder();
   }
+
+  std::unique_lock<std::mutex>& getUniqueLock() { return lck_; }
 
  private:
 
   MutexLock& mutex_;
+  std::unique_lock<std::mutex> lck_;
 };
 
 }  // namespace muduo

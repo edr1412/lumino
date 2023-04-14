@@ -34,7 +34,7 @@ AsyncLogging::AsyncLogging(const string& basename,
 
 void AsyncLogging::append(const char* logline, int len)
 {
-  std::unique_lock<std::mutex> lock(mutex_);
+  muduo::MutexLockGuard lock(mutex_);
   // 最常见的情况
   // 如果当前缓冲剩余的空间足够大，则直接把日志消息拷贝（追加）到当前缓冲中
   if (currentBuffer_->avail() > len)
@@ -55,7 +55,7 @@ void AsyncLogging::append(const char* logline, int len)
       currentBuffer_.reset(new Buffer); // 前端写入太快，后端来不及插手，前端一下子把两块缓冲都用完了，只能分配一块新的缓冲。极少发生。
     }
     currentBuffer_->append(logline, len);
-    cond_.notify_one(); // 通知后端线程开始写入日志数据
+    cond_.notify(); // 通知后端线程开始写入日志数据
   }
 }
 
@@ -78,14 +78,14 @@ void AsyncLogging::threadFunc()
     assert(buffersToWrite.empty());
 
     {
-      std::unique_lock<std::mutex> lock(mutex_);
+      muduo::MutexLockGuard lock(mutex_);
       if (buffers_.empty())
       {
           // 这里是非常规的condition variable用法，它没有使用while循环，而且等待时间有上限
           // 因为在这里等待条件触发，其条件有两个：
           // 1. 前端写满了一个或多个buffer，通知了后端线程
           // 2. 超时
-          cond_.wait_for(lock, std::chrono::seconds(flushInterval_));
+          cond_.waitForSeconds(lock, flushInterval_);
       }
       // 当“条件”满足时，先将当前缓冲移入buffers_，并立刻将空闲的newBuffer1移为当前缓冲。
       buffers_.push_back(std::move(currentBuffer_)); // 不管写了多少

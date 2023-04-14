@@ -46,8 +46,11 @@ EventLoop* EventLoopThread::getLoop()
   // 等待threadFunc在stack上定义EventLoop对象，然后将其地址赋值给 loop_ 成员变量后，被唤醒，从 loop_ 拿到EventLoop对象的地址并返回
   EventLoop* loop = nullptr;
   {
-    std::unique_lock<std::mutex> lock(mutex_);
-    cond_.wait(lock, [this] { return loop_ != nullptr; });
+    MutexLockGuard lock(mutex_);
+    while (loop_ == NULL)
+    {
+      cond_.wait(lock);
+    }
     loop = loop_;
   }
 
@@ -67,16 +70,16 @@ void EventLoopThread::threadFunc()
   }
 
   {
-    std::lock_guard<std::mutex> lock(mutex_);
+    MutexLockGuard lock(mutex_);
     loop_ = &loop;
-    cond_.notify_one();
+    cond_.notify();
   }
 
   loop.loop();
   //assert(exiting_);
   // loop 中有一些函数是可以给其他线程使用的,而有一些是可以给其他线程使用的
   // 因此需要确保在 threadFunc 能够独占这个 loop_ 的情况下,才可以改变 loop_
-  std::lock_guard<std::mutex> lock(mutex_);
+  MutexLockGuard lock(mutex_);
   loop_ = nullptr;
 }
 

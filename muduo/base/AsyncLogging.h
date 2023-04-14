@@ -9,6 +9,7 @@
 #include <muduo/base/BlockingQueue.h>
 #include <muduo/base/BoundedBlockingQueue.h>
 #include <muduo/base/CountDownLatch.h>
+#include <muduo/base/Mutex.h>
 #include <muduo/base/Thread.h>
 #include <muduo/base/LogStream.h>
 
@@ -47,7 +48,7 @@ class AsyncLogging : noncopyable
   void stop() NO_THREAD_SAFETY_ANALYSIS
   {
     running_ = false;
-    cond_.notify_one();
+    cond_.notify();
     thread_.join();
   }
 
@@ -65,8 +66,8 @@ class AsyncLogging : noncopyable
   const off_t rollSize_;
   muduo::Thread thread_;
   muduo::CountDownLatch latch_;
-  std::mutex mutex_;
-  std::condition_variable cond_ GUARDED_BY(mutex_);
+  muduo::MutexLock mutex_;
+  muduo::Condition cond_ GUARDED_BY(mutex_);
   BufferPtr currentBuffer_ GUARDED_BY(mutex_); //当前缓冲
   BufferPtr nextBuffer_ GUARDED_BY(mutex_); //预备缓冲
   BufferVector buffers_ GUARDED_BY(mutex_); //待写入文件的已填满的缓冲
