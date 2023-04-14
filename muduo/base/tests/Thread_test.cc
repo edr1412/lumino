@@ -55,7 +55,10 @@ int main()
 
   muduo::Thread t1(threadFunc);
   printf("t1.tid=%d\n", t1.tid());
+  mysleep(2);
+  printf("t1.tid=%d\n", t1.tid());
   t1.join();
+  printf("t1.tid=%d\n", t1.tid());
 
   muduo::Thread t2(std::bind(threadFunc2, 42),
                    "thread for free function with argument");

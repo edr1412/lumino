@@ -7,14 +7,14 @@ using namespace muduo;
 using namespace muduo::net;
 
 std::vector<InetAddress> g_backends;
-ThreadLocal<std::map<string, TunnelPtr> > t_tunnels;
+thread_local std::map<string, TunnelPtr> t_tunnels;
 MutexLock g_mutex;
 size_t g_current = 0;
 
 void onServerConnection(const TcpConnectionPtr& conn)
 {
   LOG_DEBUG << (conn->connected() ? "UP" : "DOWN");
-  std::map<string, TunnelPtr>& tunnels = t_tunnels.value();
+  std::map<string, TunnelPtr>& tunnels = t_tunnels;
   if (conn->connected())
   {
     conn->setTcpNoDelay(true);

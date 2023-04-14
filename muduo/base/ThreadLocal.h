@@ -6,6 +6,9 @@
 #ifndef MUDUO_BASE_THREADLOCAL_H
 #define MUDUO_BASE_THREADLOCAL_H
 
+#include <thread>
+
+/*
 #include <muduo/base/Mutex.h>  // MCHECK
 #include <muduo/base/noncopyable.h>
 
@@ -56,4 +59,5 @@ class ThreadLocal : noncopyable
 
 }  // namespace muduo
 
+*/
 #endif  // MUDUO_BASE_THREADLOCAL_H
