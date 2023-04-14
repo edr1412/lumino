@@ -17,6 +17,13 @@ void printString(const std::string& str)
   usleep(100*1000);
 }
 
+void longTask(int num)
+{
+  LOG_INFO << "longTask" << num;
+  muduo::CurrentThread::sleepUsec(3000000);
+}
+
+
 void test(int maxSize)
 {
   LOG_WARN << "Test ThreadPool with max queue size = " << maxSize;
@@ -41,11 +48,36 @@ void test(int maxSize)
   pool.stop();
 }
 
+void test2()
+{
+  LOG_WARN << "Test ThreadPool by stoping early. tid = "
+           << muduo::CurrentThread::tid();
+  muduo::ThreadPool pool;
+  pool.setMaxQueueSize(5);
+  pool.start(3);
+  muduo::Thread t1(
+      [&pool]()
+      {
+        LOG_WARN << "The tid of thread t1 is " << muduo::CurrentThread::tid();
+        for (int i = 0; i < 20; ++i)
+        {
+          pool.run(std::bind(longTask, i));
+        }
+      },
+      "thread1");
+  muduo::CurrentThread::sleepUsec(5000000);
+  LOG_WARN << "stop pool";
+  pool.stop();
+  t1.join();
+  pool.run(print);
+  LOG_WARN << "test2 Done";
+}
+
 int main()
 {
-  test(0);
   test(1);
   test(5);
   test(10);
   test(50);
+  test2();
 }

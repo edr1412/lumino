@@ -13,11 +13,8 @@
 using namespace muduo;
 
 ThreadPool::ThreadPool(const string& nameArg)
-  : mutex_(),
-    notEmpty_(),
-    notFull_(),
-    name_(nameArg),
-    maxQueueSize_(0),
+  : name_(nameArg),
+    queue_(),
     running_(false)
 {
 }
@@ -32,7 +29,7 @@ ThreadPool::~ThreadPool()
 
 void ThreadPool::start(int numThreads)
 {
-  assert(threads_.empty());
+  assert(threads_.empty() && numThreads >= 0);
   running_ = true;
   threads_.reserve(numThreads);
   for (int i = 0; i < numThreads; ++i)
@@ -50,11 +47,8 @@ void ThreadPool::start(int numThreads)
 
 void ThreadPool::stop()
 {
-  {
-  MutexLockGuard lock(mutex_);
+  queue_.stop();
   running_ = false;
-  notEmpty_.notifyAll();
-  }
   for (auto& thr : threads_)
   {
     thr->join();
@@ -63,55 +57,12 @@ void ThreadPool::stop()
 
 size_t ThreadPool::queueSize() const
 {
-  MutexLockGuard lock(mutex_);
   return queue_.size();
 }
 
-void ThreadPool::run(Task task)
+void ThreadPool::run(Task &&task) 
 {
-  if (threads_.empty())
-  {
-    task();
-  }
-  else
-  {
-    MutexLockGuard lock(mutex_);
-    while (isFull())
-    {
-      notFull_.wait(lock);
-    }
-    assert(!isFull());
-
-    queue_.push_back(std::move(task));
-    notEmpty_.notify();
-  }
-}
-
-ThreadPool::Task ThreadPool::take()
-{
-  MutexLockGuard lock(mutex_);
-  // always use a while-loop, due to spurious wakeup
-  while (queue_.empty() && running_)
-  {
-    notEmpty_.wait(lock);
-  }
-  Task task;
-  if (!queue_.empty())
-  {
-    task = queue_.front();
-    queue_.pop_front();
-    if (maxQueueSize_ > 0)
-    {
-      notFull_.notify();
-    }
-  }
-  return task;
-}
-
-bool ThreadPool::isFull() const
-{
-  mutex_.assertLocked();
-  return maxQueueSize_ > 0 && queue_.size() >= maxQueueSize_;
+  queue_.put(std::forward<Task>(task));
 }
 
 void ThreadPool::runInThread()
@@ -124,7 +75,8 @@ void ThreadPool::runInThread()
     }
     while (running_)
     {
-      Task task(take());
+      Task task;
+      queue_.take(task);
       if (task)
       {
         task();
@@ -146,7 +98,8 @@ void ThreadPool::runInThread()
   }
   catch (...)
   {
-    fprintf(stderr, "unknown exception caught in ThreadPool %s\n", name_.c_str());
+    fprintf(stderr, "unknown exception caught in ThreadPool %s\n",
+            name_.c_str());
     throw; // rethrow
   }
 }
