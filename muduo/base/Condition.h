@@ -13,6 +13,7 @@
 namespace muduo
 {
 
+// 对 condition_variable 的简单封装
 class Condition : noncopyable
 {
  public:

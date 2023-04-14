@@ -118,6 +118,8 @@ namespace muduo
 //   mutable MutexLock mutex_;
 //   std::vector<int> data_ GUARDED_BY(mutex_);
 // };
+
+// 互斥量包装类，引入 TSA，并提供assertLocked()用于检查当前线程是否持有互斥量
 class CAPABILITY("mutex") MutexLock : noncopyable
 {
  public:
