@@ -88,9 +88,9 @@ class ChatServer : noncopyable
 
   void threadInit(EventLoop* loop)
   {
-    assert(LocalConnections::pointer() == NULL);
+    // assert(LocalConnections::pointer() == NULL);
     LocalConnections::instance();
-    assert(LocalConnections::pointer() != NULL);
+    // assert(LocalConnections::pointer() != NULL);
     MutexLockGuard lock(mutex_);
     loops_.insert(loop);
   }

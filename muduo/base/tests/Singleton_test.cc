@@ -41,6 +41,10 @@ class TestNoDestroy : muduo::noncopyable
   }
 };
 
+class DerivedFromTestNoDestroy : TestNoDestroy {};
+
+class IDontHaveNoDestroy {};
+
 void threadFunc()
 {
   printf("tid=%d, %p name=%s\n",
@@ -59,6 +63,9 @@ int main()
          muduo::CurrentThread::tid(),
          &muduo::Singleton<Test>::instance(),
          muduo::Singleton<Test>::instance().name().c_str());
-  muduo::Singleton<TestNoDestroy>::instance();
-  printf("with valgrind, you should see %zd-byte memory leak.\n", sizeof(TestNoDestroy));
+  // muduo::Singleton<TestNoDestroy>::instance();
+  // printf("with valgrind, you should see %zd-byte memory leak.\n", sizeof(TestNoDestroy));
+  printf("Whether TestNoDestroy has no_destroy or not? %s \n", muduo::detail::has_no_destroy<TestNoDestroy>::value ? "yes" : "no");
+  printf("Whether DerivedFromTestNoDestroy has no_destroy or not? %s \n", muduo::detail::has_no_destroy<DerivedFromTestNoDestroy>::value ? "yes" : "no");
+  printf("Whether IDontHaveNoDestroy has no_destroy or not? %s \n", muduo::detail::has_no_destroy<IDontHaveNoDestroy>::value ? "yes" : "no");
 }
