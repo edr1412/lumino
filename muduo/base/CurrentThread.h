@@ -7,23 +7,13 @@
 #define MUDUO_BASE_CURRENTTHREAD_H
 
 #include <muduo/base/Types.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#include <string>
 
 namespace muduo
 {
-
-namespace detail {
-inline pid_t gettid() { return static_cast<pid_t>(::syscall(SYS_gettid)); }
-
-}  // namespace detail
 namespace CurrentThread
 {
   // internal
-  extern thread_local int t_cachedTid;
+  extern thread_local int t_cachedTid; // 缓存 gettid 的执行结果，避免反复调用系统调用带来的开销
   extern thread_local char t_tidString[32];
   extern thread_local int t_tidStringLength;
   extern thread_local const char* t_threadName;
@@ -31,6 +21,9 @@ namespace CurrentThread
 
   inline int tid()
   {
+    // __builtin_expect 是 GCC 的一个内置函数，
+    // 其作用是供程序员将分支信息提供给编译器，以方便编译器调整取指令的顺序进行优化，
+    // 这样可以减少 cache 产生控制冒险。
     if (__builtin_expect(t_cachedTid == 0, 0))
     {
       cacheTid();

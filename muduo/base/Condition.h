@@ -7,48 +7,61 @@
 #define MUDUO_BASE_CONDITION_H
 
 #include <muduo/base/Mutex.h>
-
-#include <pthread.h>
+#include <chrono>
+#include <condition_variable>
 
 namespace muduo
 {
 
+// 对 condition_variable 的简单封装
 class Condition : noncopyable
 {
  public:
-  explicit Condition(MutexLock& mutex)
-    : mutex_(mutex)
-  {
-    MCHECK(pthread_cond_init(&pcond_, NULL));
-  }
+  Condition()
+   : m_cond()
+  {}
 
-  ~Condition()
-  {
-    MCHECK(pthread_cond_destroy(&pcond_));
-  }
+  ~Condition() = default;
 
-  void wait()
+  void wait(MutexLockGuard &lck)
   {
-    MutexLock::UnassignGuard ug(mutex_);
-    MCHECK(pthread_cond_wait(&pcond_, mutex_.getPthreadMutex()));
+    m_cond.wait(lck.getUniqueLock()); 
+  }
+  template <class Predicate>
+  void wait(MutexLockGuard &lck, Predicate pred)
+  {
+    m_cond.wait(lck.getUniqueLock(), pred);
   }
 
   // returns true if time out, false otherwise.
-  bool waitForSeconds(double seconds);
+  bool waitForSeconds(MutexLockGuard &lck, double seconds)
+  {
+    std::cv_status status = m_cond.wait_for(lck.getUniqueLock(), 
+      std::chrono::duration<double>(seconds));
+    return status == std::cv_status::timeout;
+  }
 
+  template <class Predicate>
+  bool waitForSeconds(MutexLockGuard &lck,
+                double seconds,
+                Predicate pred)
+    {
+      return m_cond.wait_for(lck.getUniqueLock(),
+        std::chrono::duration<double>(seconds),
+        pred);
+    }
   void notify()
   {
-    MCHECK(pthread_cond_signal(&pcond_));
+    m_cond.notify_one();
   }
 
   void notifyAll()
   {
-    MCHECK(pthread_cond_broadcast(&pcond_));
+    m_cond.notify_all();
   }
 
  private:
-  MutexLock& mutex_;
-  pthread_cond_t pcond_;
+  std::condition_variable m_cond;
 };
 
 }  // namespace muduo

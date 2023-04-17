@@ -8,7 +8,6 @@ project "base"
     headers('*.h')
     files {
             'AsyncLogging.cc',
-            'Condition.cc',
             'CountDownLatch.cc',
             'Date.cc',
             'Exception.cc',

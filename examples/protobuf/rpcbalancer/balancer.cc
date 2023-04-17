@@ -158,7 +158,7 @@ class Balancer : noncopyable
   {
     int count = threadCount_.fetch_add(1);
     LOG_INFO << "IO thread " << count;
-    PerThread& t = t_backends_.value();
+    PerThread& t = t_backends_;
     t.current = count % backends_.size();
 
     for (size_t i = 0; i < backends_.size(); ++i)
@@ -186,7 +186,7 @@ class Balancer : noncopyable
                     const RpcMessagePtr& msg,
                     Timestamp)
   {
-    PerThread& t = t_backends_.value();
+    PerThread& t = t_backends_;
     bool succeed = false;
     for (size_t i = 0; i < t.backends.size() && !succeed; ++i)
     {
@@ -203,8 +203,10 @@ class Balancer : noncopyable
   RpcCodec codec_;
   std::vector<InetAddress> backends_;
   std::atomic_int32_t threadCount_;
-  ThreadLocal<PerThread> t_backends_;
+  static thread_local PerThread t_backends_;
 };
+
+thread_local Balancer::PerThread Balancer::t_backends_;
 
 int main(int argc, char* argv[])
 {

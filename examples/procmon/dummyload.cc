@@ -18,7 +18,7 @@ int g_percent = 82;
 std::atomic_int32_t g_done;
 bool g_busy = false;
 MutexLock g_mutex;
-Condition g_cond(g_mutex);
+Condition g_cond();
 
 double busy(int cycles)
 {
@@ -50,9 +50,9 @@ void threadFunc()
   while (g_done.load() == 0)
   {
     {
-    MutexLockGuard guard(g_mutex);
+    MutexLockGuard lock(g_mutex);
     while (!g_busy)
-      g_cond.wait();
+      g_cond.wait(lock);
     }
     busy(g_cycles);
   }

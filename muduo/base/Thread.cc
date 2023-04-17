@@ -20,6 +20,35 @@
 
 namespace muduo
 {
+namespace detail
+{
+inline pid_t gettid()
+{
+  return static_cast<pid_t>(::syscall(SYS_gettid));
+}
+}  // namespace detail
+
+void CurrentThread::cacheTid()
+{
+  if (t_cachedTid == 0)
+  {
+    t_cachedTid = detail::gettid();
+    t_tidStringLength = snprintf(t_tidString, sizeof t_tidString, "%5d ", t_cachedTid);
+  }
+}
+
+bool CurrentThread::isMainThread()
+{
+  return tid() == ::getpid();
+}
+
+void CurrentThread::sleepUsec(int64_t usec)
+{
+  struct timespec ts = { 0, 0 };
+  ts.tv_sec = static_cast<time_t>(usec / Timestamp::kMicroSecondsPerSecond);
+  ts.tv_nsec = static_cast<long>(usec % Timestamp::kMicroSecondsPerSecond * 1000);
+  ::nanosleep(&ts, NULL);
+}
 
 std::atomic_int32_t Thread::numCreated_(0);
 
@@ -92,7 +121,7 @@ void Thread::join()
 {
   if (thread_.joinable())
   {
-    --numCreated_;
+    // --numCreated_;
     thread_.join();
   }
 }
@@ -101,7 +130,7 @@ Thread::~Thread()
 {
   if (thread_.joinable())
   {
-    --numCreated_;
+    // --numCreated_;
     thread_.detach();
   }
 }

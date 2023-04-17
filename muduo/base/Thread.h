@@ -17,6 +17,7 @@
 namespace muduo
 {
 
+// 线程包装类，比起 std::thread，提供了获取线程名、线程 ID、线程数量等功能
 class Thread : noncopyable {
  public:
   using ThreadFunc = std::function<void()>;
@@ -25,6 +26,7 @@ class Thread : noncopyable {
   Thread(Thread&& rhs) noexcept;
   Thread& operator=(Thread&& rhs) noexcept;
   void join();
+  const string& name() const { return name_; }
   pid_t tid() const { return tid_; }
   static inline int numCreated() { return numCreated_.load(); }
 
