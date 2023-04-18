@@ -75,8 +75,7 @@ void ThreadPool::runInThread()
     }
     while (running_)
     {
-      Task task;
-      queue_.take(task);
+      Task task = queue_.take();
       if (task)
       {
         task();

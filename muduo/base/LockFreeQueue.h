@@ -1,14 +1,21 @@
+#ifndef MUDUO_BASE_LOCKFREEQUEUE_H
+#define MUDUO_BASE_LOCKFREEQUEUE_H
+
+#include <muduo/base/noncopyable.h>
 #include <atomic>
 #include <memory>
 
+namespace muduo
+{
+
 template<typename T>
-class lock_free_queue
+class LockFreeQueue : noncopyable
 {
 private:
     struct node;
     struct counted_node_ptr
     {
-        int external_count;
+        int external_count; // 代表该指针的引用计数
         node* ptr;
     };
     std::atomic<counted_node_ptr> head;
@@ -23,6 +30,7 @@ private:
         std::atomic<T*> data;
         std::atomic<node_counter> count;
         std::atomic<counted_node_ptr> next;
+        
         node()
         {
             node_counter new_count;
@@ -33,10 +41,7 @@ private:
             next.ptr=nullptr;
             next.external_count=0;
         }
-        node(T const& data_):
-            data(std::make_shared<T>(data_)),
-            internal_count(0)
-        {}
+
         void release_ref()
         {
             node_counter old_counter=
@@ -74,6 +79,7 @@ private:
         old_counter.external_count=new_counter.external_count;
     }
 
+    // 把 old_node_ptr 的 external counter 通通转化到指向node的 internal_count 里
     static void free_external_counter(counted_node_ptr &old_node_ptr)
     {
         node* const ptr=old_node_ptr.ptr;
@@ -110,9 +116,26 @@ private:
     }
 
 public:
-    void push(T new_value)
+    LockFreeQueue()
     {
-        std::unique_ptr<T> new_data(new T(new_value));
+        node* new_node = new node();
+        counted_node_ptr new_ptr;
+        new_ptr.ptr = new_node;
+        new_ptr.external_count = 1;
+        head.store(new_ptr);
+        tail.store(new_ptr);
+    }
+
+    ~LockFreeQueue()
+    {
+        while (pop()) {}
+        node* head_ptr = head.load().ptr;
+        delete head_ptr;
+    }
+
+    void push(T&& new_value)
+    {
+        std::unique_ptr<T> new_data(new T(std::forward<T>(new_value)));
         counted_node_ptr new_next;
         new_next.ptr=new node;
         new_next.external_count=1;
@@ -172,3 +195,7 @@ public:
         }
     }
 };
+
+}
+
+#endif // LOCK_FREE_STACK_H

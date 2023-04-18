@@ -6,85 +6,89 @@
 #ifndef MUDUO_BASE_THREADPOOL_H
 #define MUDUO_BASE_THREADPOOL_H
 
-#include <muduo/base/Condition.h>
-#include <muduo/base/Mutex.h>
 #include <muduo/base/Thread.h>
 #include <muduo/base/Types.h>
+#include <muduo/base/BlockingQueueForThreadPool.h>
+#include <muduo/base/LockFreeQueue.h>
 
 #include <atomic>
 #include <vector>
-#include <list>
+
+#define use_lock_free 1 // 0: use Blocking Queue, 1: use Lock-Free Queue
 
 namespace muduo
 {
 
-  // 同步队列，供线程池使用，负责任务队列的同步操作
-  template <typename T>
-  class SyncQueue : noncopyable
+// 同步队列，供线程池使用，负责任务队列的同步操作
+template <typename T>
+class SyncQueue
+{
+public:
+  SyncQueue(int maxsize = 0)
   {
-  public:
-    SyncQueue(int maxsize = 65536)
-        : mutex_(), notFull_(), notEmpty_(), maxSize_(maxsize), running_(true) {}
-    ~SyncQueue() = default;
+#if use_lock_free
+    LockFreeQueue<T> lock_free_queue;
+#else
+    BlockingQueueForThreadPool<T> blocking_queue(maxsize);
+#endif
+  }
 
-    void put(T &&x) 
-    { 
-      MutexLockGuard lock(mutex_);
-      while (queue_.size() >= maxSize_ && running_)
-      {
-        notFull_.wait(lock);
-      }
-      if (!running_)
-        return;
-      queue_.push_back(std::forward<T>(x));
-      notEmpty_.notify();
-    }
+  ~SyncQueue() = default;
 
-    void take(T &t)
-    {
-      MutexLockGuard lock(mutex_);
-      while (queue_.empty() && running_)
-      {
-        notEmpty_.wait(lock);
-      }
-      if (!running_)
-        return;
-      t = queue_.front();
-      queue_.pop_front();
-      notFull_.notify();
-    }
+  void put(T&& x)
+  {
+#if use_lock_free
+    lock_free_queue_.push(std::forward<T>(x));
+#else
+    blocking_queue_.put(std::forward<T>(x));
+#endif
+  }
 
-    size_t size() const
-    {
-      MutexLockGuard lock(mutex_);
-      return queue_.size();
-    }
+  T take()
+  {
+#if use_lock_free
+    std::unique_ptr<T> ptr = lock_free_queue_.pop();
+    return ptr ? *ptr : T();
+#else
+    return blocking_queue_.take();
+#endif
+  }
 
-    void setMaxSize(size_t maxSize)
-    {
-      assert(maxSize > 0);
-      MutexLockGuard lock(mutex_);
-      maxSize_ = maxSize;
-    }
+  size_t size() const
+  {
+#if use_lock_free
+    // LockFreeQueue does not support size() function
+    return 0;
+#else
+    return blocking_queue_.size();
+#endif
+  }
 
-    void stop() NO_THREAD_SAFETY_ANALYSIS
-    {
-      {
-        MutexLockGuard lock(mutex_);
-        running_ = false;
-      }
-      notFull_.notifyAll();
-      notEmpty_.notifyAll();
-    }
+  void setMaxSize(size_t maxSize)
+  {
+#if use_lock_free
+    // LockFreeQueue does not support setMaxSize() function
+#else
+    blocking_queue_.setMaxSize(maxSize);
+#endif
+  }
 
-  private:
-    std::list<T> queue_;
-    mutable MutexLock mutex_;
-    Condition notFull_ GUARDED_BY(mutex_);
-    Condition notEmpty_ GUARDED_BY(mutex_);
-    size_t maxSize_;
-    bool running_;
-  };
+  void stop()
+  {
+#if use_lock_free
+    // LockFreeQueue does not support stop() function
+#else
+    blocking_queue_.stop();
+#endif
+  }
+
+private:
+#if use_lock_free
+  LockFreeQueue<T> lock_free_queue_;
+#else
+  BlockingQueueForThreadPool<T> blocking_queue_;
+#endif
+};
 
   // 线程池
   // 上层通过调用 run 函数将任务添加到同步层中，
@@ -122,7 +126,7 @@ namespace muduo
     std::string name_;
     Task threadInitCallback_;
     std::vector<std::unique_ptr<Thread>> threads_;
-    SyncQueue<Task> queue_;
+    BlockingQueueForThreadPool<Task> queue_;
     std::atomic<bool> running_;
   };
 

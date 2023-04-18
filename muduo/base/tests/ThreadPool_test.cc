@@ -75,6 +75,7 @@ void test2()
 
 int main()
 {
+  test(0);
   test(1);
   test(5);
   test(10);
