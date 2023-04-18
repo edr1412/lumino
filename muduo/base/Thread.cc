@@ -119,7 +119,7 @@ Thread &Thread::operator=(Thread &&rhs) noexcept
 
 void Thread::join()
 {
-  if (thread_.joinable())
+  if (thread_.joinable()) // FIXME: blockingqueue_bench 中出现 segmentation fault
   {
     // --numCreated_;
     thread_.join();
