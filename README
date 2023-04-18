@@ -7,6 +7,14 @@ Copyright (c) 2010, Shuo Chen.  All rights reserved.
 Use of this source code is governed by a BSD-style
 license that can be found in the License file.
 
+这是是一个学习性项目，参考陈硕老师的muduo库，结合自己的理解，做了以下几点改动：
+1. 完全去除了boost库的依赖，使用C++11/14/17的特性替代，并尽量使用 modern C++ 的语法
+2. 使用标准库重写了Mutex、Condition、Thread的包装，简化了Singleton、ThreadLocalSingleton 的实现，移除了Atomic、ThreadLocal类
+3. 用std::thread替换了pthread，但保留使用gettid(2)系统调用获取线程id的方式
+4. 将线程池分离为 ThreadPool 和 SyncQueue，使逻辑清晰
+5. 验证实现了一些FIXME提到的细节，比如 TcpConnection 中使用CAS操作StateE状态，避免了潜在的竞争条件；并且增加send()的右值引用版本，避免了不必要的拷贝
+6. 结合书中的内容，增加了一些注释
+
 Tested on:
   Unbuntu 22.04 LTS
 

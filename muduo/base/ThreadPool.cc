@@ -47,8 +47,8 @@ void ThreadPool::start(int numThreads)
 
 void ThreadPool::stop()
 {
-  queue_.stop();
   running_ = false;
+  queue_.stop();
   for (auto& thr : threads_)
   {
     thr->join();
