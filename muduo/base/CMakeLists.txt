@@ -16,7 +16,7 @@ set(base_SRCS
   )
 
 add_library(muduo_base ${base_SRCS})
-target_link_libraries(muduo_base pthread rt)
+target_link_libraries(muduo_base pthread rt atomic)
 
 #add_library(muduo_base_cpp11 ${base_SRCS})
 #target_link_libraries(muduo_base_cpp11 pthread rt)

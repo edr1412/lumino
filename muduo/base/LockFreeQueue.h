@@ -5,6 +5,10 @@
 #include <atomic>
 #include <memory>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+
+
 namespace muduo
 {
 
@@ -33,13 +37,16 @@ private:
         
         node()
         {
+            data.store(nullptr);
             node_counter new_count;
             new_count.internal_count=0;
             new_count.external_counters=2;
             count.store(new_count);
 
-            next.ptr=nullptr;
-            next.external_count=0;
+            counted_node_ptr initial_next;
+            initial_next.ptr = nullptr;
+            initial_next.external_count = 0;
+            next.store(initial_next);
         }
 
         void release_ref()
@@ -54,7 +61,7 @@ private:
             }
             while(!count.compare_exchange_strong(
                       old_counter,new_counter,
-                      std::memory_order_acquire,std::memory_order_relaxed)); // the whole count structure has to be updated atomically
+                      std::memory_order_acq_rel,std::memory_order_relaxed)); // the whole count structure has to be updated atomically
             if(!new_counter.internal_count &&
                !new_counter.external_counters)
             {
@@ -95,7 +102,7 @@ private:
         }
         while(!ptr->count.compare_exchange_strong(
                   old_counter,new_counter,
-                  std::memory_order_acquire,std::memory_order_relaxed)); // updates the two counts using a single compare_exchange_strong() on the whole count structure
+                  std::memory_order_acq_rel,std::memory_order_relaxed)); // updates the two counts using a single compare_exchange_strong() on the whole count structure
         if(!new_counter.internal_count &&
            !new_counter.external_counters)
         {
@@ -147,7 +154,7 @@ public:
             if(old_tail.ptr->data.compare_exchange_strong(
                    old_data,new_data.get()))
             {
-                counted_node_ptr old_next={0};
+                counted_node_ptr old_next={0, nullptr};
                 if(!old_tail.ptr->next.compare_exchange_strong(
                        old_next,new_next))
                 {   // 失败了代表其他线程已经帮忙更新了next
@@ -160,7 +167,7 @@ public:
             }
             else
             {
-                counted_node_ptr old_next={0};
+                counted_node_ptr old_next={0, nullptr};
                 if(old_tail.ptr->next.compare_exchange_strong(
                        old_next,new_next)) // 帮忙那个成功的线程更新 next，反正不然也只能忙等。最终只会有一个线程成功更新next，而所有参与的线程都会进入 set_new_tail，在那里结算关于old_tail的引用计数。
                 {
@@ -185,7 +192,7 @@ public:
                 return std::unique_ptr<T>();
             }
             counted_node_ptr next=ptr->next.load();
-            if(head.compare_exchange_strong(old_head,next))
+            if(head.compare_exchange_strong(old_head,next)) // maybe std::memory_order_release,std::memory_order_relaxed
             {
                 T* const res=ptr->data.exchange(nullptr);
                 free_external_counter(old_head);
@@ -197,5 +204,7 @@ public:
 };
 
 }
+
+#pragma GCC diagnostic pop
 
 #endif // LOCK_FREE_STACK_H

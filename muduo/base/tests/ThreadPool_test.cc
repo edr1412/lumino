@@ -41,6 +41,9 @@ void test(int maxSize)
     pool.run(std::bind(printString, std::string(buf)));
   }
   LOG_WARN << "Done";
+  // show queue size
+  LOG_WARN << "now queueSize = " << pool.queueSize();
+
 
   muduo::CountDownLatch latch(1);
   pool.run(std::bind(&muduo::CountDownLatch::countDown, &latch));

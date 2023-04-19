@@ -126,7 +126,7 @@ private:
     std::string name_;
     Task threadInitCallback_;
     std::vector<std::unique_ptr<Thread>> threads_;
-    BlockingQueueForThreadPool<Task> queue_;
+    SyncQueue<Task> queue_;
     std::atomic<bool> running_;
   };
 
