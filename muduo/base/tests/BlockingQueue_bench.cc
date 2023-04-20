@@ -14,7 +14,7 @@ class Bench
  public:
   Bench(int numThreads)
     : latch_(numThreads),
-      threads_(numThreads)
+      threads_()
   {
     for (int i = 0; i < numThreads; ++i)
     {
