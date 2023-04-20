@@ -30,14 +30,15 @@ void consumer(muduo::LockFreeQueue<Task> &queue, int id) {
 }
 
 int main() {
-  muduo::LockFreeQueue<int> queue;
+  muduo::LockFreeQueue<Task> queue;
 
-  printf("pushing task\n");
-  queue.push(1);
-  printf("pushed task\n");
-  printf("pushing task\n");
-  queue.push(2);
-  printf("pushed task\n");
+  // printf("pushing task\n");
+  // queue.push(1);
+  // printf("pushed task\n");
+  // printf("pushing task\n");
+  // queue.push(2);
+  // printf("pushed task\n");
+
   // std::unique_ptr<Task> task = queue.pop();
   // if (task) {
   //   (*task)();
@@ -47,26 +48,26 @@ int main() {
   //   printf("failed to pop task\n");
   // }
 
-  // for (int i = 0; i < 10; ++i) {
-  //   queue.push([i] { printf("task %d pushed by Producer \n", i); });
-  //   printf("Producer pushed task %d\n", i);
-  // }
+  for (int i = 0; i < 10; ++i) {
+    queue.push([i] { printf("task %d pushed by Producer \n", i); });
+    printf("Producer pushed task %d\n", i);
+  }
 
-  // std::vector<std::thread> producers;
-  // std::vector<std::thread> consumers;
+  std::vector<std::thread> producers;
+  std::vector<std::thread> consumers;
 
-  // for (int i = 0; i < 1; ++i) {
-  //   producers.emplace_back(producer, std::ref(queue), i);
-  //   consumers.emplace_back(consumer, std::ref(queue), i);
-  // }
+  for (int i = 0; i < 1; ++i) {
+    producers.emplace_back(producer, std::ref(queue), i);
+    consumers.emplace_back(consumer, std::ref(queue), i);
+  }
 
-  // for (auto &producer_thread : producers) {
-  //   producer_thread.join();
-  // }
+  for (auto &producer_thread : producers) {
+    producer_thread.join();
+  }
 
-  // for (auto &consumer_thread : consumers) {
-  //   consumer_thread.join();
-  // }
+  for (auto &consumer_thread : consumers) {
+    consumer_thread.join();
+  }
 
   return 0;
 }
