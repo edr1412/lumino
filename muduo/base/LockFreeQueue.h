@@ -80,12 +80,13 @@ private:
                 new_counter=old_counter;
                 --new_counter.internal_count; // 只更新 internal_count
             }
-            while(!count.compare_exchange_strong(
+            while(!count.compare_exchange_weak(
                       old_counter,new_counter,
-                      std::memory_order_acq_rel,std::memory_order_relaxed)); // the whole count structure has to be updated atomically
+                      std::memory_order_release,std::memory_order_relaxed)); // the whole count structure has to be updated atomically
             if(!new_counter.internal_count &&
                !new_counter.external_counters)
             {
+                count.load(std::memory_order_acquire); // acquire fence
                 delete this;
             }
         }
@@ -101,7 +102,7 @@ private:
             new_counter=old_counter;
             new_counter.set_external_count(new_counter.get_external_count()+1);
         }
-        while(!counter.compare_exchange_strong(
+        while(!counter.compare_exchange_weak(
                   old_counter,new_counter,
                   std::memory_order_acquire,std::memory_order_relaxed));
         old_counter.set_external_count(new_counter.get_external_count());
@@ -121,12 +122,13 @@ private:
             --new_counter.external_counters;
             new_counter.internal_count+=count_increase;
         }
-        while(!ptr->count.compare_exchange_strong(
+        while(!ptr->count.compare_exchange_weak(
                   old_counter,new_counter,
-                  std::memory_order_acq_rel,std::memory_order_relaxed)); // updates the two counts using a single compare_exchange_strong() on the whole count structure
+                  std::memory_order_release,std::memory_order_relaxed)); // updates the two counts using a single compare_exchange_strong() on the whole count structure
         if(!new_counter.internal_count &&
            !new_counter.external_counters)
         {
+            ptr->count.load(std::memory_order_acquire); // acquire fence
             delete ptr;
         }
     }
@@ -216,7 +218,8 @@ public:
                 return std::unique_ptr<T>();
             }
             counted_node_ptr next=ptr->next.load();
-            if(head.compare_exchange_strong(old_head,next)) // maybe std::memory_order_release,std::memory_order_relaxed
+            if(head.compare_exchange_strong(old_head,next,
+                                            std::memory_order_release,std::memory_order_relaxed))
             {
                 T* const res=ptr->data.exchange(nullptr);
                 free_external_counter(old_head);
