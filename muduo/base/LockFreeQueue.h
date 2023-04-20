@@ -162,9 +162,10 @@ public:
         delete head_ptr;
     }
 
-    void push(T&& new_value)
+    template<typename U>
+    void push(U&& new_value)
     {
-        std::unique_ptr<T> new_data(new T(std::forward<T>(new_value)));
+        std::unique_ptr<T> new_data(new T(std::forward<U>(new_value)));
         counted_node_ptr new_next;
         new_next.set_ptr(new node);
         new_next.set_external_count(1);

@@ -4,6 +4,11 @@ project(muduo C CXX)
 
 enable_testing()
 
+# enable or disable ThreadSanitizer
+# if you want to enable ThreadSanitizer, use
+# cmake -DENABLE_THREAD_SANITIZER=ON ..
+option(ENABLE_THREAD_SANITIZER "Enable ThreadSanitizer" OFF)
+
 # 设置编译类型，默认为Debug
 # if you want to build release version, use
 # cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -54,6 +59,11 @@ set(CXX_FLAGS
  -std=c++17
  -rdynamic
  )
+if(ENABLE_THREAD_SANITIZER)
+  list(APPEND CXX_FLAGS "-fsanitize=thread")
+  list(APPEND CXX_FLAGS "-fPIE")
+  list(APPEND CXX_FLAGS "-pie")
+endif()
 if(CMAKE_BUILD_BITS EQUAL 32)
   list(APPEND CXX_FLAGS "-m32")
 endif()

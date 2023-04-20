@@ -35,12 +35,13 @@ public:
 
   ~SyncQueue() = default;
 
-  void put(T&& x)
+  template<typename U>
+  void put(U&& x)
   {
 #if use_lock_free
-    lock_free_queue_.push(std::forward<T>(x));
+    lock_free_queue_.push(std::forward<U>(x));
 #else
-    blocking_queue_.put(std::forward<T>(x));
+    blocking_queue_.put(std::forward<U>(x));
 #endif
   }
 

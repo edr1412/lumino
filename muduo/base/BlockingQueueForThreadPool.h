@@ -15,7 +15,8 @@ public:
       : mutex_(), notFull_(), notEmpty_(), maxSize_(maxsize), running_(true) {}
   ~BlockingQueueForThreadPool() = default;
 
-  void put(T &&x)
+  template<typename U>
+  void put(U &&x)
   {
     MutexLockGuard lock(mutex_);
     if (maxSize_ != 0)
@@ -28,7 +29,7 @@ public:
 
     if (!running_)
       return;
-    queue_.push_back(std::forward<T>(x));
+    queue_.push_back(std::forward<U>(x));
     notEmpty_.notify();
   }
 
