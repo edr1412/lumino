@@ -211,7 +211,7 @@ public:
             node* const ptr=old_head.get_ptr();
             if(ptr==tail.load().get_ptr())
             {
-                //ptr->release_ref();
+                ptr->release_ref();
                 return std::unique_ptr<T>();
             }
             counted_node_ptr next=ptr->next.load();
