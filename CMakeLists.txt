@@ -4,9 +4,11 @@ project(muduo C CXX)
 
 enable_testing()
 
-# 设置编译类型，默认为release
+# 设置编译类型，默认为Debug
+# if you want to build release version, use
+# cmake -DCMAKE_BUILD_TYPE=Release ..
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release")
+   set(CMAKE_BUILD_TYPE Debug)
 endif()
 
 # 设置安装目录，默认为/usr/local

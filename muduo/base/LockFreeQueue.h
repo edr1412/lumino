@@ -4,10 +4,10 @@
 #include <muduo/base/noncopyable.h>
 #include <atomic>
 #include <memory>
+#include <assert.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
-
 
 namespace muduo
 {
@@ -19,8 +19,31 @@ private:
     struct node;
     struct counted_node_ptr
     {
-        int external_count; // 代表该指针的引用计数
-        node* ptr;
+        uint64_t ptr_and_external_count;
+
+        counted_node_ptr() noexcept : ptr_and_external_count(0) {}
+
+        counted_node_ptr(node* ptr, uint64_t count) {
+            set_ptr(ptr);
+            set_external_count(count);
+        }
+
+        node* get_ptr() const {
+            return reinterpret_cast<node*>(ptr_and_external_count & (~0ull >> 16));
+        }
+
+        uint64_t get_external_count() const {
+            return ptr_and_external_count >> 48;
+        }
+
+        void set_ptr(node* ptr) {
+            uint64_t new_ptr = reinterpret_cast<uint64_t>(ptr);
+            ptr_and_external_count = (ptr_and_external_count & (~0ull << 48)) | (new_ptr & (~0ull >> 16));
+        }
+
+        void set_external_count(uint64_t count) {
+            ptr_and_external_count = (ptr_and_external_count & (~0ull >> 16)) | (count << 48);
+        }
     };
     std::atomic<counted_node_ptr> head;
     std::atomic<counted_node_ptr> tail;
@@ -43,9 +66,7 @@ private:
             new_count.external_counters=2;
             count.store(new_count);
 
-            counted_node_ptr initial_next;
-            initial_next.ptr = nullptr;
-            initial_next.external_count = 0;
+            counted_node_ptr initial_next; // (nullptr, 0)
             next.store(initial_next);
         }
 
@@ -78,19 +99,19 @@ private:
         do
         {
             new_counter=old_counter;
-            ++new_counter.external_count;
+            new_counter.set_external_count(new_counter.get_external_count()+1);
         }
         while(!counter.compare_exchange_strong(
                   old_counter,new_counter,
                   std::memory_order_acquire,std::memory_order_relaxed));
-        old_counter.external_count=new_counter.external_count;
+        old_counter.set_external_count(new_counter.get_external_count());
     }
 
     // 把 old_node_ptr 的 external counter 通通转化到指向node的 internal_count 里
     static void free_external_counter(counted_node_ptr &old_node_ptr)
     {
-        node* const ptr=old_node_ptr.ptr;
-        int const count_increase=old_node_ptr.external_count-2;
+        node* const ptr=old_node_ptr.get_ptr();
+        int const count_increase=old_node_ptr.get_external_count()-2;
         node_counter old_counter=
             ptr->count.load(std::memory_order_relaxed);
         node_counter new_counter;
@@ -113,10 +134,10 @@ private:
     void set_new_tail(counted_node_ptr &old_tail,
                       counted_node_ptr const &new_tail)
     {
-        node* const current_tail_ptr=old_tail.ptr;
+        node* const current_tail_ptr=old_tail.get_ptr();
         while(!tail.compare_exchange_weak(old_tail,new_tail) &&
-              old_tail.ptr==current_tail_ptr); // 若其他线程抢先更新tail为new_tail，则会进入else分支；若仅仅是其他有线程更新了tail->external_count，则更新old_tail后重试；若成功更新tail，进入if分支。
-        if(old_tail.ptr==current_tail_ptr)
+              old_tail.get_ptr()==current_tail_ptr); // 若其他线程抢先更新tail为new_tail，则会进入else分支；若仅仅是其他有线程更新了tail->external_count，则更新old_tail后重试；若成功更新tail，进入if分支。
+        if(old_tail.get_ptr()==current_tail_ptr)
             free_external_counter(old_tail);
         else
             current_tail_ptr->release_ref();
@@ -125,18 +146,19 @@ private:
 public:
     LockFreeQueue()
     {
-        node* new_node = new node();
         counted_node_ptr new_ptr;
-        new_ptr.ptr = new_node;
-        new_ptr.external_count = 1;
+        new_ptr.set_ptr(new node);
+        new_ptr.set_external_count(1);
         head.store(new_ptr);
         tail.store(new_ptr);
+        static_assert(std::atomic<counted_node_ptr>::is_always_lock_free, "std::atomic<counted_node_ptr> is not lock free");
+        assert (tail.is_lock_free());
     }
 
     ~LockFreeQueue()
     {
         while (pop()) {}
-        node* head_ptr = head.load().ptr;
+        node* head_ptr = head.load().get_ptr();
         delete head_ptr;
     }
 
@@ -144,21 +166,21 @@ public:
     {
         std::unique_ptr<T> new_data(new T(std::forward<T>(new_value)));
         counted_node_ptr new_next;
-        new_next.ptr=new node;
-        new_next.external_count=1;
+        new_next.set_ptr(new node);
+        new_next.set_external_count(1);
         counted_node_ptr old_tail=tail.load();
         for(;;)
         {
             increase_external_count(tail,old_tail);
             T* old_data=nullptr;
-            if(old_tail.ptr->data.compare_exchange_strong(
+            if(old_tail.get_ptr()->data.compare_exchange_strong(
                    old_data,new_data.get()))
             {
-                counted_node_ptr old_next={0, nullptr};
-                if(!old_tail.ptr->next.compare_exchange_strong(
+                counted_node_ptr old_next; // 默认 count = 0, ptr = nullptr
+                if(!old_tail.get_ptr()->next.compare_exchange_strong(
                        old_next,new_next))
                 {   // 失败了代表其他线程已经帮忙更新了next
-                    delete new_next.ptr; // 已不需要，可以删掉
+                    delete new_next.get_ptr(); // 已不需要，可以删掉
                     new_next=old_next; // 使用另一个 thread 更新好的 next 来给 tail
                 }
                 set_new_tail(old_tail, new_next);
@@ -167,12 +189,12 @@ public:
             }
             else
             {
-                counted_node_ptr old_next={0, nullptr};
-                if(old_tail.ptr->next.compare_exchange_strong(
+                counted_node_ptr old_next; // 默认 count = 0, ptr = nullptr
+                if(old_tail.get_ptr()->next.compare_exchange_strong(
                        old_next,new_next)) // 帮忙那个成功的线程更新 next，反正不然也只能忙等。最终只会有一个线程成功更新next，而所有参与的线程都会进入 set_new_tail，在那里结算关于old_tail的引用计数。
                 {
                     old_next=new_next; // 将这个 thread 的 new node 设为新的 tail node
-                    new_next.ptr=new node; // 给 new_next.ptr 重新分配一个新的 node
+                    new_next.set_ptr(new node); // 给 new_next.ptr 重新分配一个新的 node
                 }
                 set_new_tail(old_tail, old_next);
             }
@@ -186,9 +208,10 @@ public:
         for(;;)
         {
             increase_external_count(head,old_head);
-            node* const ptr=old_head.ptr;
-            if(ptr==tail.load().ptr)
+            node* const ptr=old_head.get_ptr();
+            if(ptr==tail.load().get_ptr())
             {
+                //ptr->release_ref();
                 return std::unique_ptr<T>();
             }
             counted_node_ptr next=ptr->next.load();

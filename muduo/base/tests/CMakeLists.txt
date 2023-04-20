@@ -10,6 +10,9 @@ target_link_libraries(blockingqueue_bench muduo_base)
 add_executable(boundedblockingqueue_test BoundedBlockingQueue_test.cc)
 target_link_libraries(boundedblockingqueue_test muduo_base)
 
+add_executable(lockfreequeue_test LockFreeQueue_test.cc)
+target_link_libraries(lockfreequeue_test muduo_base)
+
 add_executable(date_unittest Date_unittest.cc)
 target_link_libraries(date_unittest muduo_base)
 add_test(NAME date_unittest COMMAND date_unittest)
