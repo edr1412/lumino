@@ -27,7 +27,7 @@ public:
   SyncQueue(int maxsize = 0)
   {
 #if use_lock_free
-    LockFreeQueue<T> lock_free_queue;
+    //LockFreeQueue<T> lock_free_queue;
 #else
     BlockingQueueForThreadPool<T> blocking_queue(maxsize);
 #endif

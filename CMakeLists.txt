@@ -4,10 +4,13 @@ project(muduo C CXX)
 
 enable_testing()
 
-# enable or disable ThreadSanitizer
 # if you want to enable ThreadSanitizer, use
 # cmake -DENABLE_THREAD_SANITIZER=ON ..
 option(ENABLE_THREAD_SANITIZER "Enable ThreadSanitizer" OFF)
+
+# if you want to enable AddressSanitizer, use
+# -DENABLE_ADDRESS_SANITIZER=ON ..
+option(ENABLE_ADDRESS_SANITIZER "Enable AddressSanitizer" OFF)
 
 # 设置编译类型，默认为Debug
 # if you want to build release version, use
@@ -59,6 +62,13 @@ set(CXX_FLAGS
  -std=c++17
  -rdynamic
  )
+
+if(ENABLE_ADDRESS_SANITIZER AND ENABLE_THREAD_SANITIZER)
+  message(WARNING "Both AddressSanitizer and ThreadSanitizer are enabled. This may cause undefined behavior. It is recommended to use only one of them.")
+endif()
+if(ENABLE_ADDRESS_SANITIZER)
+ list(APPEND CXX_FLAGS "-fsanitize=address")
+endif()
 if(ENABLE_THREAD_SANITIZER)
   list(APPEND CXX_FLAGS "-fsanitize=thread")
   list(APPEND CXX_FLAGS "-fPIE")

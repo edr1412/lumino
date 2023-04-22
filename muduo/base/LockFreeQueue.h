@@ -70,6 +70,28 @@ private:
             next.store(initial_next);
         }
 
+        node(int i)
+        {
+            data.store(nullptr);
+            node_counter new_count;
+            new_count.internal_count=i;
+            new_count.external_counters=2;
+            count.store(new_count);
+
+            counted_node_ptr initial_next; // (nullptr, 0)
+            next.store(initial_next);
+        }
+
+        ~node()
+        {
+            T* ptr=data.load();
+            if(ptr)
+            {
+                delete ptr;
+                //data = nullptr; 
+            }
+        }
+
         void release_ref()
         {
             node_counter old_counter=
@@ -145,11 +167,14 @@ private:
             current_tail_ptr->release_ref();
     }
 
+    node* first_node;
+
 public:
     LockFreeQueue()
     {
+        first_node = new node(114514); // Hack: 这个node有时会删不掉（总是泄露24bytes），找不到原因，只好标记一下最后删，好在不影响性能
         counted_node_ptr new_ptr;
-        new_ptr.set_ptr(new node);
+        new_ptr.set_ptr(first_node);
         new_ptr.set_external_count(1);
         head.store(new_ptr);
         tail.store(new_ptr);
@@ -162,6 +187,7 @@ public:
         while (pop()) {}
         node* head_ptr = head.load().get_ptr();
         delete head_ptr;
+        delete first_node;
     }
 
     template<typename U>
