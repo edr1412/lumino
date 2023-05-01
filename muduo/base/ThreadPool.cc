@@ -80,6 +80,11 @@ void ThreadPool::runInThread()
       {
         task();
       }
+      else
+      {
+        // std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // 休眠10ms，避免无任务时空转
+      }
     }
   }
   catch (const Exception& ex)
