@@ -34,6 +34,7 @@ set(HEADERS
   RpcCodec.h
   RpcChannel.h
   RpcServer.h
+  google-inl.h
   rpc.proto
   rpcservice.proto
   ${PROJECT_BINARY_DIR}/muduo/net/protorpc/rpc.pb.h

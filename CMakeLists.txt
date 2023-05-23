@@ -1,12 +1,31 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.0)
 
 project(muduo C CXX)
 
 enable_testing()
 
+set(CMAKE_CXX_STANDARD 11)
+
+# if you want to enable ThreadSanitizer, use
+# cmake -DENABLE_THREAD_SANITIZER=ON ..
+option(ENABLE_THREAD_SANITIZER "Enable ThreadSanitizer" OFF)
+
+# if you want to enable AddressSanitizer, use
+# -DENABLE_ADDRESS_SANITIZER=ON ..
+option(ENABLE_ADDRESS_SANITIZER "Enable AddressSanitizer" OFF)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Debug")
 endif()
+
+option(CMAKE_BUILD_NO_EXAMPLES "Do not build examples" ON)
+
+# 设置安装目录，默认为/usr/local
+if(NOT CMAKE_INSTALL_PREFIX)
+  set(CMAKE_INSTALL_PREFIX "/usr/local")
+endif()
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CXX_FLAGS
  -g
@@ -29,6 +48,19 @@ set(CXX_FLAGS
  # -MMD
  # -std=c++0x
  )
+
+if(ENABLE_ADDRESS_SANITIZER AND ENABLE_THREAD_SANITIZER)
+ message(WARNING "Both AddressSanitizer and ThreadSanitizer are enabled. This may cause undefined behavior. It is recommended to use only one of them.")
+endif()
+if(ENABLE_ADDRESS_SANITIZER)
+list(APPEND CXX_FLAGS "-fsanitize=address")
+endif()
+if(ENABLE_THREAD_SANITIZER)
+ list(APPEND CXX_FLAGS "-fsanitize=thread")
+ list(APPEND CXX_FLAGS "-fPIE")
+ list(APPEND CXX_FLAGS "-pie")
+endif()
+
 if(CMAKE_BUILD_BITS EQUAL 32)
   list(APPEND CXX_FLAGS "-m32")
 endif()
@@ -86,9 +118,6 @@ add_subdirectory(muduo/net)
 
 if(NOT CMAKE_BUILD_NO_EXAMPLES)
   add_subdirectory(examples)
-else()
-  if(CARES_INCLUDE_DIR AND CARES_LIBRARY)
-    add_subdirectory(examples/cdns)
-  endif()
 endif()
+add_subdirectory(examples/asio/chat)
 
