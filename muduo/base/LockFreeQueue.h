@@ -19,7 +19,7 @@ private:
     struct node;
     struct counted_node_ptr
     {
-        uint64_t ptr_and_external_count;
+        uint64_t ptr_and_external_count; //为什么需要外部计数和内部计数？使用两种引用计数器可以将修改计数的操作分流到两个不同的计数器上，否则所有线程都将试图在同一时刻更新同一个计数器。参考 https://stackoverflow.com/questions/67371033/how-does-the-split-reference-counting-work-in-a-lock-free-stack
 
         counted_node_ptr() noexcept : ptr_and_external_count(0) {}
 
@@ -114,7 +114,7 @@ private:
         }
     };
 
-    static void increase_external_count(
+    static void increase_external_count( // dereference（访问被counted_node_ptr指向的对象） 之前，让外部引用计数加1
         std::atomic<counted_node_ptr>& counter, // 要更新的 external counter
         counted_node_ptr& old_counter)
     {
@@ -160,7 +160,7 @@ private:
     {
         node* const current_tail_ptr=old_tail.get_ptr();
         while(!tail.compare_exchange_weak(old_tail,new_tail) &&
-              old_tail.get_ptr()==current_tail_ptr); // 若其他线程抢先更新tail为new_tail，则会进入else分支；若仅仅是其他有线程更新了tail->external_count，则更新old_tail后重试；若成功更新tail，进入if分支。
+              old_tail.get_ptr()==current_tail_ptr); // 只有一个线程能成功。若被其他线程抢先更新tail为new_tail，则代表set_new_tail失败，会进入else分支；若仅仅是其他有线程更新了tail->external_count，则更新old_tail后重试；若成功更新tail，进入if分支。
         if(old_tail.get_ptr()==current_tail_ptr)
             free_external_counter(old_tail);
         else

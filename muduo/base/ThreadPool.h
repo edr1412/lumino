@@ -14,7 +14,7 @@
 #include <atomic>
 #include <vector>
 
-#define use_lock_free 1 // 0: use Blocking Queue, 1: use Lock-Free Queue
+#define use_lock_free 0 // 0: use Blocking Queue, 1: use Lock-Free Queue
 
 namespace muduo
 {
