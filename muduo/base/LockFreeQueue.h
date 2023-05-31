@@ -102,7 +102,7 @@ private:
                 new_counter=old_counter;
                 --new_counter.internal_count; // 只更新 internal_count
             }
-            while(!count.compare_exchange_weak(
+            while(!count.compare_exchange_strong(
                       old_counter,new_counter,
                       std::memory_order_release,std::memory_order_relaxed)); // the whole count structure has to be updated atomically
             if(!new_counter.internal_count &&
@@ -124,7 +124,7 @@ private:
             new_counter=old_counter;
             new_counter.set_external_count(new_counter.get_external_count()+1);
         }
-        while(!counter.compare_exchange_weak(
+        while(!counter.compare_exchange_strong(
                   old_counter,new_counter,
                   std::memory_order_acquire,std::memory_order_relaxed));
         old_counter.set_external_count(new_counter.get_external_count());
@@ -144,7 +144,7 @@ private:
             --new_counter.external_counters;
             new_counter.internal_count+=count_increase;
         }
-        while(!ptr->count.compare_exchange_weak(
+        while(!ptr->count.compare_exchange_strong(
                   old_counter,new_counter,
                   std::memory_order_release,std::memory_order_relaxed)); // updates the two counts using a single compare_exchange_strong() on the whole count structure
         if(!new_counter.internal_count &&
